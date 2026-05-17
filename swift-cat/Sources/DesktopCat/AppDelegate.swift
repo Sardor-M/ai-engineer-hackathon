@@ -19,7 +19,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.catWindow = window
 
         if let view = window.contentView as? CatView {
-            let c = CatCoordinator(catView: view, settings: s, memory: m)
+            let brain = Brain.defaultStack()
+            let c = CatCoordinator(catView: view, settings: s, memory: m, brain: brain)
             c.start()
             self.coordinator = c
         } else {
