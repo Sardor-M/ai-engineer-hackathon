@@ -20,6 +20,9 @@ final class CatCoordinator {
     // Brain.
     private let brain: Brain
 
+    // Voice (Phase 3b).
+    private let voice: Voice
+
     // System integrations.
     private let frontmost = FrontmostWatcher()
     private let cursor = CursorMonitor()
@@ -56,11 +59,18 @@ final class CatCoordinator {
     private var lastProactiveAt = Date.distantPast
     private let proactiveCooldownSec: TimeInterval = 4
 
-    init(catView: CatView, settings: SettingsStore, memory: MemoryStore, brain: Brain) {
+    init(
+        catView: CatView,
+        settings: SettingsStore,
+        memory: MemoryStore,
+        brain: Brain,
+        voice: Voice
+    ) {
         self.catView = catView
         self.settings = settings
         self.memory = memory
         self.brain = brain
+        self.voice = voice
     }
 
     func start() {
@@ -82,12 +92,13 @@ final class CatCoordinator {
             Task { @MainActor in self?.runObservationTick() }
         }
 
-        print("[cat] coordinator ready — brain wired (Phase 3a); UI surfaces pending Phase 4")
+        print("[cat] coordinator ready — brain + voice wired (Phase 3a+3b); UI surfaces pending Phase 4")
     }
 
     func stop() {
         frontmost.stop()
         cursor.stop()
+        voice.stop()
         idleTimer?.invalidate()
         idleTimer = nil
         observationTimer?.invalidate()
@@ -162,6 +173,7 @@ final class CatCoordinator {
                 tag: "proactive",
                 said: line
             ))
+            await voice.speak(line, mode: .auto, settings: settings.current)
         } catch {
             print("[cat] proactiveAssist capture failed:", error.localizedDescription)
         }
@@ -187,6 +199,9 @@ final class CatCoordinator {
                     tag: result.tag.isEmpty ? nil : result.tag,
                     said: result.response.isEmpty ? nil : result.response
                 ))
+                if !result.response.isEmpty {
+                    await self.voice.speak(result.response, mode: .auto, settings: self.settings.current)
+                }
             } catch {
                 print("[cat] observation capture failed:", error.localizedDescription)
             }
@@ -213,6 +228,11 @@ final class CatCoordinator {
                     tag: "pdf-summary",
                     said: summary
                 ))
+                // Speak the first 1-2 sentences — the active panel (Phase 4)
+                // will show the full text. Limit to ~280 chars so ElevenLabs
+                // doesn't bill us for a long, monotone read.
+                let spoken = self.firstSentences(of: summary, max: 280)
+                await self.voice.speak(spoken, mode: .pdf, settings: self.settings.current)
             } catch {
                 print("[cat] pdf capture failed:", error.localizedDescription)
             }
@@ -252,7 +272,33 @@ final class CatCoordinator {
                 tag: "email-analyzed",
                 said: result.summary.isEmpty ? nil : result.summary
             ))
+            if !result.summary.isEmpty {
+                await self.voice.speak(result.summary, mode: .email, settings: self.settings.current)
+            }
         }
+    }
+
+    // MARK: - Helpers
+
+    /// Returns the first 1-2 sentences of `s`, capped at `max` characters. Used
+    /// when we want to *speak* a passage but show the full thing in a panel.
+    private func firstSentences(of s: String, max: Int) -> String {
+        let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        let scanner = Scanner(string: trimmed)
+        scanner.charactersToBeSkipped = nil
+        var out = ""
+        var sentenceCount = 0
+        while !scanner.isAtEnd && sentenceCount < 2 && out.count < max {
+            if let piece = scanner.scanUpToCharacters(from: CharacterSet(charactersIn: ".!?")) {
+                out.append(piece)
+            }
+            if let punct = scanner.scanCharacters(from: CharacterSet(charactersIn: ".!?")) {
+                out.append(punct)
+                sentenceCount += 1
+            }
+        }
+        let result = out.isEmpty ? trimmed : out
+        return result.count > max ? String(result.prefix(max)) : result
     }
 
     // MARK: - Idle / wake helpers

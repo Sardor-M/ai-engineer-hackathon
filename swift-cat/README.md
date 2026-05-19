@@ -8,8 +8,8 @@ Native macOS rewrite of the Electron cat. See [`../docs/SWIFT_REWRITE.md`](../do
 |---|---|---|
 | 1 — Foundation | ✅ shipped | Window, sprite stack, drag, breath, crossfade |
 | 2 — System integrations | ✅ shipped | FrontmostWatcher, MailReader, ScreenCapture, CursorMonitor, Permissions, Settings + Memory stores, .app bundling |
-| 3a — Brain | ✅ this branch | OpenAI + Gemini dispatcher, five prompts ported verbatim, 60-min rate-limit cooldown, wired into click → proactive + 30s idle loop + PDF / email modes |
-| 3b — Voice | ⏳ next | ElevenLabs TTS + AVSpeechSynthesizer fallback, profile auto-switch |
+| 3a — Brain | ✅ shipped | OpenAI + Gemini dispatcher, five prompts ported verbatim, 60-min rate-limit cooldown, wired into click → proactive + 60s idle loop + PDF / email modes |
+| 3b — Voice | ✅ this branch | ElevenLabs TTS via AVAudioPlayer, AVSpeechSynthesizer fallback, VoicePicker auto-switch by mode + night hours, spoken after every brain output |
 | 3c — Listener | ⏳ next | SFSpeechRecognizer on-device + Whisper fallback |
 | 4 — UI polish | ⏳ later | Speech bubble, active panel, settings overlay, per-profile color + animation, walking cycle |
 
@@ -68,6 +68,23 @@ With `OPENAI_API_KEY` (and/or `GEMINI_API_KEY`) in your environment, the brain i
 ```
 
 Provider selection: tries OpenAI first; falls through to Gemini on empty / 429. A 429 from either provider freezes only that provider for 60 minutes (matches the Electron behavior). Pull `OPENAI_API_KEY` and set `GEMINI_API_KEY` to verify the fallback path.
+
+## Phase 3b — what works now
+
+With `ELEVENLABS_API_KEY` in your environment, every brain output is now spoken aloud through `AVAudioPlayer`. Voice profile auto-switches by mode (PDF → low / studious, Mail → soft, idle → user default, hours 22–06 → whisper). Pull `ELEVENLABS_API_KEY` and you'll fall through to `AVSpeechSynthesizer` — voice loses character but the cat keeps talking.
+
+```
+[cat] proactiveAssist: hm, three tabs of stack overflow. it's that kind of bug.
+[voice] elevenlabs → playing (profile=soft)
+[cat] pdf summary: oh — they're claiming masked tokens still beat the no-pretraining baseline…
+[voice] elevenlabs → playing (profile=low)
+```
+
+Env knobs added on this branch:
+- `CAT_OBSERVATION_INTERVAL_SEC` — autonomous loop interval (default 60s, min 5).
+- `ELEVENLABS_API_KEY` — when unset, falls through to `AVSpeechSynthesizer`.
+
+Click cooldown is 4s — rapid clicks no longer fan out into N parallel API calls.
 
 ## Permissions (first run)
 
