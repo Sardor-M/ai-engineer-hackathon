@@ -223,3 +223,7 @@ memory.json
 journal.txt
 settings.json
 .DS_Store
+
+# Local-only migration scratch / planning docs. Kept out of the remote
+# because they're working notes, not source-of-truth for the project.
+docs/migration/
