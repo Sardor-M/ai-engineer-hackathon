@@ -31,15 +31,30 @@ final class CatCoordinator {
     private let puddleAfterSec: TimeInterval = 22
 
     // Autonomous observation loop. Matches AUTONOMOUS_MS in renderer.js (20s);
-    // we use 30s on Swift to be gentler on quota during dev.
+    // default to 60s on Swift to be gentler on quota during dev. Override with
+    // CAT_OBSERVATION_INTERVAL_SEC env var when you want it chattier.
     private var observationTimer: Timer?
-    private let observationIntervalSec: TimeInterval = 30
+    private let observationIntervalSec: TimeInterval = {
+        if let raw = ProcessInfo.processInfo.environment["CAT_OBSERVATION_INTERVAL_SEC"],
+           let n = Double(raw), n >= 5
+        {
+            return n
+        }
+        return 60
+    }()
     private var observationInFlight = false
 
     // Per-mode work guards — we don't want two PDF summaries fighting each other.
     private var pdfInFlight = false
     private var emailInFlight = false
     private var lastEmailFingerprint: String?
+
+    // Click-to-proactive guard + cooldown. Without this, rapid clicks fan out
+    // into N parallel API calls and exhaust provider quota in seconds (saw 8+
+    // proactiveAssist calls in <30s during the first dev run).
+    private var proactiveInFlight = false
+    private var lastProactiveAt = Date.distantPast
+    private let proactiveCooldownSec: TimeInterval = 4
 
     init(catView: CatView, settings: SettingsStore, memory: MemoryStore, brain: Brain) {
         self.catView = catView
@@ -112,7 +127,21 @@ final class CatCoordinator {
 
     private func handleCatClick() {
         wakeUp()
-        Task { [weak self] in await self?.runProactiveAssist() }
+
+        // Debounce: drop the click if one is already running or if the last one
+        // finished less than `proactiveCooldownSec` ago. Without this, rapid
+        // clicks each fire their own capture + brain call.
+        if proactiveInFlight { return }
+        if Date().timeIntervalSince(lastProactiveAt) < proactiveCooldownSec { return }
+
+        proactiveInFlight = true
+        Task { [weak self] in
+            await self?.runProactiveAssist()
+            await MainActor.run {
+                self?.proactiveInFlight = false
+                self?.lastProactiveAt = Date()
+            }
+        }
     }
 
     // MARK: - Brain calls

@@ -131,11 +131,13 @@ final class Brain: Sendable {
     /// model decides the region is blank or wallpaper.
     func askMouseQuestion(_ region: Data) async -> String {
         guard !region.isEmpty else { return "" }
+        // 100 tokens: Gemini's coarser tokenization cut us off mid-question at
+        // 60. The prompt caps the actual answer at <12 words anyway.
         let text = await dispatch(ChatRequest(
             system: Prompts.mouseQuestion,
             user: "Look at this region near the cursor and ask a short question.",
             imageData: region,
-            maxTokens: 60
+            maxTokens: 100
         ))
         return strippedQuotes(text)
     }
@@ -150,11 +152,14 @@ final class Brain: Sendable {
             "recent_lines_already_said": recent,
             "current_hour_24": Calendar.current.component(.hour, from: Date()),
         ]
+        // 200 tokens: first dev run cut Gemini outputs mid-sentence ("the way",
+        // "oh, the") at 120 because its tokens are coarser than GPT-4o-mini.
+        // The prompt itself caps the cat's reply at <25 words.
         let text = await dispatch(ChatRequest(
             system: Prompts.proactive,
             user: jsonString(payload),
             imageData: image,
-            maxTokens: 120
+            maxTokens: 200
         ))
         return strippedQuotes(text).trimmingCharacters(in: .whitespacesAndNewlines)
     }
