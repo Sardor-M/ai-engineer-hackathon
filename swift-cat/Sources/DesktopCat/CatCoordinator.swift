@@ -347,6 +347,7 @@ final class CatCoordinator {
     private func toggleListen() {
         if listener.isListening {
             listener.stop()
+            listenInFlight = false
             return
         }
 
