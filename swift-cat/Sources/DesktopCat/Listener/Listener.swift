@@ -30,10 +30,11 @@ final class Listener {
     /// engine fired — partials and final routed through `callbacks` identically.
     @discardableResult
     func start(callbacks: ListenerCallbacks) async -> String? {
-        guard activeEngine == nil else {
+        if isListening {
             print("[listener] already listening — ignoring duplicate start")
             return activeEngine?.name
         }
+        activeEngine = nil
 
         for engine in engines {
             let available = await engine.isAvailable
