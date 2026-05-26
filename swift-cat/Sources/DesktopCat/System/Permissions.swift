@@ -1,11 +1,15 @@
 import AppKit
 import ApplicationServices
+import AVFoundation
 import CoreGraphics
+import Speech
 
 enum CatPermission: String, CaseIterable, Sendable {
     case screenRecording = "Screen Recording"
     case accessibility = "Accessibility"
     case automation = "Automation"
+    case microphone = "Microphone"
+    case speechRecognition = "Speech Recognition"
 
     /// macOS doesn't have a reliable "is granted" check for Automation outside
     /// of actually invoking AppleScript and inspecting the error. Treat it as
@@ -18,6 +22,10 @@ enum CatPermission: String, CaseIterable, Sendable {
             return AXIsProcessTrusted()
         case .automation:
             return true
+        case .microphone:
+            return AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
+        case .speechRecognition:
+            return SFSpeechRecognizer.authorizationStatus() == .authorized
         }
     }
 
@@ -30,6 +38,10 @@ enum CatPermission: String, CaseIterable, Sendable {
             return URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
         case .automation:
             return URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation")
+        case .microphone:
+            return URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")
+        case .speechRecognition:
+            return URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_SpeechRecognition")
         }
     }
 }

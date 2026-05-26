@@ -21,7 +21,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let view = window.contentView as? CatView {
             let brain = Brain.defaultStack()
             let voice = Voice.defaultStack()
-            let c = CatCoordinator(catView: view, settings: s, memory: m, brain: brain, voice: voice)
+            let listener = Listener.defaultStack()
+            let c = CatCoordinator(
+                catView: view,
+                settings: s,
+                memory: m,
+                brain: brain,
+                voice: voice,
+                listener: listener
+            )
             c.start()
             self.coordinator = c
         } else {

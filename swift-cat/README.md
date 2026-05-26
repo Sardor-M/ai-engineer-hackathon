@@ -9,9 +9,9 @@ Native macOS rewrite of the Electron cat. See [`../docs/SWIFT_REWRITE.md`](../do
 | 1 — Foundation | ✅ shipped | Window, sprite stack, drag, breath, crossfade |
 | 2 — System integrations | ✅ shipped | FrontmostWatcher, MailReader, ScreenCapture, CursorMonitor, Permissions, Settings + Memory stores, .app bundling |
 | 3a — Brain | ✅ shipped | OpenAI + Gemini dispatcher, five prompts ported verbatim, 60-min rate-limit cooldown, wired into click → proactive + 60s idle loop + PDF / email modes |
-| 3b — Voice | ✅ this branch | ElevenLabs TTS via AVAudioPlayer, AVSpeechSynthesizer fallback, VoicePicker auto-switch by mode + night hours, spoken after every brain output |
-| 3c — Listener | ⏳ next | SFSpeechRecognizer on-device + Whisper fallback |
-| 4 — UI polish | ⏳ later | Speech bubble, active panel, settings overlay, per-profile color + animation, walking cycle |
+| 3b — Voice | ✅ shipped | ElevenLabs TTS via AVAudioPlayer, AVSpeechSynthesizer fallback, VoicePicker auto-switch by mode + night hours, spoken after every brain output |
+| 3c — Listener | ✅ this branch | SFSpeechRecognizer on-device + Whisper fallback, Cmd+Shift+L toggle, transcript → reply → speak loop |
+| 4 — UI polish | ⏳ next | Speech bubble, active panel, settings overlay, per-profile color + animation, walking cycle |
 
 ## Build & run
 
@@ -86,12 +86,37 @@ Env knobs added on this branch:
 
 Click cooldown is 4s — rapid clicks no longer fan out into N parallel API calls.
 
+## Phase 3c — what works now
+
+Press **Cmd+Shift+L** anywhere on the system to toggle the mic. The cat listens
+through `AVAudioEngine` and transcribes via on-device `SFSpeechRecognizer`
+(free, no network round-trip). When the locale isn't installed, falls back to
+Whisper at OpenAI. On a final transcript she calls `Brain.replyToUser` and
+speaks the answer through `Voice`. Press the hotkey again to stop early — she
+also auto-stops after 60 s when using the Whisper path.
+
+```
+[listener] starting…
+[listener] partial: how's my work looking
+[listener] final: how's my work looking
+[cat] reply: mm. you've been at that diff for a while — take a sip of water.
+[voice] elevenlabs → playing (profile=soft)
+```
+
+Barge-in works: starting the mic while the cat is talking stops the current
+utterance.
+
+Env knobs added on this branch:
+- `WHISPER_API_KEY` — explicit override for the Whisper fallback. Falls back to `OPENAI_API_KEY` when unset, since OpenAI keys cover both endpoints.
+
 ## Permissions (first run)
 
 For full functionality, grant in System Settings → Privacy & Security:
 
 - **Screen Recording** — for screen capture (Phase 3 vision calls).
-- **Accessibility** — for the global cursor monitor (the timer-based fallback works without it, just less responsive).
+- **Accessibility** — for the global cursor monitor and Cmd+Shift+L hotkey (a local monitor handles the case when the cat is the focused app).
+- **Microphone** — for the mic input (Phase 3c). Prompted on first listen.
+- **Speech Recognition** — for on-device transcription (Phase 3c). Prompted on first listen.
 - **Automation → Mail / System Events** — granted on first AppleScript use.
 
 The bundled `.app` (from `make bundle`) is the path TCC remembers; `swift run` rebuilds the binary at a new path each time, so re-grants get awkward. Once you need stable permissions, use the bundle.
@@ -117,6 +142,24 @@ swift-cat/
     │   ├── ScreenCapture.swift
     │   ├── CursorMonitor.swift
     │   └── Permissions.swift
+    ├── Brain/
+    │   ├── Brain.swift          ← provider-agnostic dispatcher
+    │   ├── ChatProvider.swift
+    │   ├── OpenAIChat.swift
+    │   ├── GeminiChat.swift
+    │   ├── RateLimiter.swift
+    │   └── Prompts.swift
+    ├── Voice/
+    │   ├── Voice.swift          ← TTS dispatcher
+    │   ├── TTSEngine.swift
+    │   ├── ElevenLabsTTS.swift
+    │   ├── SystemTTS.swift
+    │   └── VoicePicker.swift
+    ├── Listener/
+    │   ├── Listener.swift       ← STT dispatcher
+    │   ├── ListenerEngine.swift
+    │   ├── SpeechListener.swift ← SFSpeechRecognizer (on-device)
+    │   └── WhisperListener.swift
     ├── Storage/
     │   ├── AppSupport.swift
     │   ├── Settings.swift

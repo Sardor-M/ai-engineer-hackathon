@@ -50,6 +50,10 @@ bundle: release
 		'  <key>LSUIElement</key><true/>' \
 		'  <key>NSAppleEventsUsageDescription</key>' \
 		'  <string>The cat reads what is in front of you (Mail messages, frontmost app) so she can offer relevant help.</string>' \
+		'  <key>NSMicrophoneUsageDescription</key>' \
+		'  <string>The cat listens when you press the mic so she can answer you.</string>' \
+		'  <key>NSSpeechRecognitionUsageDescription</key>' \
+		'  <string>The cat transcribes what you say on-device when possible, so she can reply in conversation.</string>' \
 		'</dict>' \
 		'</plist>' \
 		> $(APP_BUNDLE)/Contents/Info.plist
