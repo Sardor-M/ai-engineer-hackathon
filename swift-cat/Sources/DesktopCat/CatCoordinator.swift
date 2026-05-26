@@ -112,6 +112,8 @@ final class CatCoordinator {
         listener.stop()
         if let m = hotkeyMonitor { NSEvent.removeMonitor(m) }
         hotkeyMonitor = nil
+        if let lm = localHotkeyMonitor { NSEvent.removeMonitor(lm) }
+        localHotkeyMonitor = nil
         idleTimer?.invalidate()
         idleTimer = nil
         observationTimer?.invalidate()
