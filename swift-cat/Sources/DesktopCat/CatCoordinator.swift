@@ -26,6 +26,7 @@ final class CatCoordinator {
     // Listener (Phase 3c).
     private let listener: Listener
     private var hotkeyMonitor: Any?
+    private var localHotkeyMonitor: Any?
     private var listenInFlight = false
 
     // System integrations.
