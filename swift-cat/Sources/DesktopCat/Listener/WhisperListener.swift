@@ -95,10 +95,9 @@ final class WhisperListener: NSObject, ListenerEngine {
         if audioEngine.isRunning { audioEngine.stop() }
         audioEngine.inputNode.removeTap(onBus: 0)
 
-        let captured = buffers
+        let captured = accumulator.retrieveAndClear()
         let captureFormat = format
         let cb = callbacks
-        buffers = []
         format = nil
         callbacks = nil
 
