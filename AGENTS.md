@@ -64,7 +64,7 @@ reads) are fine.
 
 ## Commits
 
-- Conventional-commit prefix: `feat(swift):`, `fix(swift):`, `feat(electron):`, `chore:`, `docs:`, `refactor:`.
+- Conventional-commit prefix: `feat(swift):`, `fix(swift):`, `fix(electron):`, `chore:`, `docs:`, `refactor:`.
 - One commit per logical change. Don't squash unrelated work.
 - Reference issues with `fixes #N` / `closes #N` when applicable.
 - Never `git add -A` or `git add .`. List specific paths so unrelated files don't sneak in.
