@@ -338,7 +338,7 @@ final class CatCoordinator {
 
         // Local monitor as a fallback when the cat happens to be the active
         // app (rare with .accessory policy, but possible after a click).
-        NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { event in
+        localHotkeyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { event in
             handler(event)
             return event
         }
