@@ -1,120 +1,162 @@
-# The Cat - 3 Hour Execution Plan
+# The Cat
 
-A small round black cat that lives on your desktop, watches quietly, and only occasionally says something brief and oblique.
+A small, round, black cat that lives on your desktop. She watches quietly, occasionally says something brief, and remembers what she's seen across sessions.
 
-## Mission (2pm -> 5pm hard cutoff)
-- Ship a working Electron cat with character.
-- Submit a public GitHub repo + 2-minute demo video.
-- Prioritize execution over features.
+She is **not** a productivity assistant. She's a presence — silent by default, oblique when she does speak, and increasingly familiar over time.
 
-## Locked scope (3-hour version)
-### Must ship
-- Transparent, frameless, always-on-top, draggable Electron window.
-- Cat sprite on screen.
-- Screenshot loop every 30s.
-- Two-stage LLM flow: Gemini Vision -> GPT/Claude response.
-- Speech bubble with fade in/out.
-- Persistent `memory.json`.
-- Eye blink + idle breathing.
+When she notices you reading a PDF or replying to an email, she shifts into an active "context copilot" mode and offers a short summary or a draft reply.
 
-### Stretch only if ahead
-- Soft sparkles.
-- Journal on close (`journal.txt`) or lore drops.
+---
 
-### Explicitly cut
-- Voice/audio, webcam, den customization, reminders/notes/music, multiple cats, local privacy model.
+## Features
 
-## Team roles (decide in 5 minutes)
-- **Person A - Builder:** Electron app, rendering, capture loop, animations.
-- **Person B - Brain:** Gemini/OpenAI/Claude calls, prompt tuning, memory logic.
-- **Person C - Glue:** assets, README, video, submission, track alignment, unblockers.
+- **Transparent, frameless, always-on-top window** that floats over your desktop and can be dragged anywhere on the screen.
+- **Seven-sprite state machine** — puddle (resting), awake, sleep, walk1/walk2 (walking cycle), annoyed, ball-play — with idle breathing, perk, tilt, and shake animations.
+- **Two parallel cognition loops:**
+  - *Autonomous loop* (~30 s): screenshots the screen, asks Gemini Flash for a one-line description, then asks the cat-personality model whether to say anything. Most of the time, she stays silent.
+  - *Active loop* (~4 s): polls the foreground macOS app + window. If you're reading a PDF or have a Mail message selected, the glass panel opens with a context-aware summary, draft reply, or clarifying question.
+- **Persistent memory** in `memory.json` — a rolling window of up to 100 observations carries across sessions.
+- **Optional voice** via ElevenLabs. Five voice profiles (soft, curious, bright, low, whisper) and a "match voice to work type" toggle that picks profiles based on context (PDF, email, late-night).
+- **Settings panel** to toggle voice, pick a profile, and enable/disable context-aware voice switching. Settings persist in `settings.json`.
 
-No overlap. Fastest coder should be Person A.
+---
 
-## Timeline (strict)
-### 2:00-2:20 Setup sprint
-- Confirm roles and submission format.
-- Create public repo immediately.
-- A: scaffold Electron shell and cat window.
-- B: lock prompt voice + secure API keys.
-- C: generate/fetch cat sprite + start README.
+## Architecture
 
-### 2:20-3:15 Core pipeline end-to-end
-- A: screenshot every 30s + speech bubble UI.
-- B: `brain.js`
-  - `describeScreen(imageBuffer)` (Gemini vision)
-  - `getCatResponse(description, memory)` (GPT/Claude)
-- C: `.env.example`, run instructions, backup recording at 3:00.
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  Electron app (main.js)                                          │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ IPC handlers:                                              │  │
+│  │   capture-screen     → screencapture(1) → PNG buffer       │  │
+│  │   cat:getContext     → osascript → frontmost app + Mail    │  │
+│  │   cat:capturePrimary → screencapture(1) → base64           │  │
+│  │   cat:summarizePdf   → brain.summarizePdfImage             │  │
+│  │   cat:analyzeEmail   → brain.analyzeEmail                  │  │
+│  │   cat:speak          → ElevenLabs TTS → mp3 base64         │  │
+│  │   cat:get/setSettings, read/write-memory                   │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│           ▲                                          ▲           │
+│           │ contextBridge (preload.js)               │           │
+│           ▼                                          │           │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ Renderer (renderer.js + index.html + styles.css)           │  │
+│  │   • sprite manager + animation scheduler                   │  │
+│  │   • autonomousTick (30 s)                                  │  │
+│  │   • activeTick (4 s) → glass panel (Summary/Reply/Ask)     │  │
+│  │   • speech bubble + voice playback                         │  │
+│  │   • settings overlay                                       │  │
+│  └────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+        ┌──────────────────────────────────┐
+        │ brain.js                         │
+        │   describeScreen      (Gemini)   │
+        │   getCatResponse      (Gemini)   │
+        │   summarizePdfImage   (Gemini)   │
+        │   analyzeEmail        (Gemini)   │
+        │   pickVoiceProfile  (heuristic)  │
+        └──────────────────────────────────┘
+```
 
-**Hard checkpoint 3:15:** cat must speak at least once from real screen context.
+Cost discipline: a cheap vision call describes the screen, the personality model returns an empty string most of the time, and capture-skipping by context fingerprint avoids redundant calls when nothing has changed.
 
-### 3:15-4:00 Memory + minimal polish
-- A: blink + breathing + simple change detection.
-- B: memory persistence (`memory.json`, capped observation tags).
-- C: draft 2-minute script and stage demo states.
+---
 
-**Hard checkpoint 4:00:** cat is mostly silent, blinks, and remembers after restart.
+## Setup
 
-### 4:00-4:30 Stabilize and freeze
-- If stable: add one stretch item.
-- If unstable: fix only critical bugs.
-- **Code freeze at 4:30.**
+### Prerequisites
 
-### 4:30-4:50 Record demo video
-- One clean take (max two attempts).
-- If timing fails, trigger one known-safe response for demo.
-- Upload unlisted video, copy URL.
+- **macOS** (the active context-copilot mode uses AppleScript and `screencapture`).
+- **Node.js 18+** and npm.
+- A **Gemini API key** (free tier is fine). [Get one here](https://aistudio.google.com/apikey).
+- *(Optional)* an **ElevenLabs API key** for voice. Without it, the cat is text-only.
 
-### 4:50-5:00 Submit
-- Repo public, README complete, video URL included.
-- Submit and screenshot confirmation.
+### Install
 
-## Coordination rules
-1. Stuck >10 min -> escalate immediately.
-2. One branch flow; Person A merges.
-3. 2-minute stand-up every 30 minutes.
-4. Idea freeze at 4:00.
-5. Code freeze at 4:30, no exceptions.
-
-## Repo checklist
-- `.env` ignored.
-- `.env.example` committed.
-- `node_modules/` ignored.
-- `memory.json` and `journal.txt` ignored.
-- `npm install && npm start` works.
-
-## Run locally
 ```bash
 npm install
 cp .env.example .env
+# edit .env and add GEMINI_API_KEY (and optionally ELEVENLABS_API_KEY)
 npm start
 ```
 
-## Current scaffold status
-- Electron core window and renderer shell created.
-- Draggable mascot window implemented.
-- Speech bubble UI and 30s demo loop stub implemented.
-- Placeholder `brain.js` added for Gemini + GPT/Claude wiring.
+### macOS permissions (first run)
 
-## Cat system prompt (for Person B)
-```text
-You are a small black cat who lives on the person's computer screen. You are round, quiet, and still.
-You are not an assistant. You are a presence.
+The first time you launch, macOS will prompt for two permissions. Both are required for the active mode to work:
 
-How you speak:
-- Rarely. Silence is default; empty string most of the time.
-- Briefly. One sentence, maybe two.
-- Obliquely. Observe; do not instruct.
-- Quietly. No exclamation marks, emoji, or internet cadence.
+1. **Screen Recording** — System Settings → Privacy & Security → Screen Recording → enable for your terminal (or for Electron itself once it appears in the list). Required for `screencapture`.
+2. **Automation** — accept the prompts that ask permission to control "System Events" and "Mail". Required for detecting the foreground app and reading the selected email.
 
-CRITICAL: Return empty string at least 3 out of every 4 times.
-When given screen observations plus past notes, respond only if something genuinely catches your attention.
+If you grant Screen Recording mid-session, **fully quit and relaunch** the terminal; macOS only re-reads TCC permissions on process startup.
+
+---
+
+## Configuration
+
+### Environment variables (`.env`)
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `GEMINI_API_KEY` | yes | Vision + text via `gemini-2.5-flash`. |
+| `ELEVENLABS_API_KEY` | no | Voice output. If absent, voice is disabled. |
+
+### Settings (`settings.json`, written by the app)
+
+| Field | Default | Purpose |
+| --- | --- | --- |
+| `voiceEnabled` | `false` | Master voice toggle. |
+| `voiceProfile` | `"soft"` | Default ElevenLabs profile (`soft` / `curious` / `bright` / `low` / `whisper`). |
+| `autoVoiceByContext` | `true` | When on, profile is picked from work type + time of day (e.g. `whisper` after 22:00, `low` for PDFs, `soft` for email). |
+
+Open the in-app settings panel via the gear icon on the cat.
+
+---
+
+## Project structure
+
+```
+.
+├── main.js              # Electron main process, IPC handlers, AppleScript bridges
+├── preload.js           # contextBridge: exposes `window.desktopCat` to renderer
+├── renderer.js          # sprite state machine, both ticks, panel + voice UI
+├── brain.js             # Gemini calls + voice profile selection
+├── cat_prompt.txt       # personality prompt (system instruction)
+├── index.html           # cat sprites + glass panel + settings overlay
+├── styles.css           # all visual states + keyframe animations
+├── assets/              # cat sprites used at runtime (PNG)
+├── cat_images/          # source sprites in PNG + SVG (asset library)
+└── docs/
+    └── execution.md     # hackathon execution plan & team coordination
 ```
 
-## 90-second pitch
-```text
-This is a small black cat that lives on your desktop. Most of the time, she says nothing.
-Under the hood, a cheap vision model describes the screen, and a reasoning model decides whether she has anything to say.
-She remembers across sessions, so over time she feels personal.
-She's not a productivity assistant. She's a quiet presence.
-```
+Files written at runtime (gitignored): `.env`, `memory.json`, `settings.json`, `journal.txt`.
+
+---
+
+## Troubleshooting
+
+**`Error occurred in handler for 'capture-screen': Failed to get sources.`**
+The terminal (or Electron) doesn't have Screen Recording permission. Open System Settings → Privacy & Security → Screen Recording, enable the entry for your terminal app, then quit and relaunch. The capture path now uses `screencapture(1)`, so as long as the CLI permission is granted, it will work.
+
+**The active panel never opens for PDFs or email.**
+Confirm the foreground app is one of: Preview, Adobe Acrobat, a browser viewing a `.pdf` URL, or Mail.app with a message *actually selected*. Open Console.app and look for `[cat] mode=...` log lines from `npm start` — they tell you what mode the classifier picked.
+
+**The cat says nothing for long stretches.**
+That's intended. The personality prompt instructs her to return an empty string most of the time. Click the cat to force a tick.
+
+**Voice is silent even though `voiceEnabled` is true.**
+Check the settings panel — if the warning reads "no ELEVENLABS_API_KEY in .env", add the key to `.env` and restart.
+
+---
+
+## Documentation
+
+- [`docs/execution.md`](docs/execution.md) — hackathon execution plan, team coordination, and the original 3-hour scope decisions.
+
+---
+
+## License
+
+MIT.

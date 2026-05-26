@@ -8,9 +8,68 @@
   </head>
   <body>
     <div id="app">
-      <div id="speech-bubble" class="hidden"></div>
-      <div id="cat-wrapper">
-        <img id="cat" src="./assets/cat_awake.svg" alt="Small black cat mascot" />
+      <div id="panel" class="hidden">
+        <div id="panel-head">
+          <span id="panel-mode" data-mode="idle">watching</span>
+          <span id="panel-title"></span>
+          <button id="panel-close" title="dismiss">×</button>
+        </div>
+        <div id="panel-tabs" class="hidden">
+          <button class="tab active" data-tab="summary">Summary</button>
+          <button class="tab" data-tab="reply">Reply</button>
+          <button class="tab" data-tab="ask">Ask</button>
+        </div>
+        <div id="panel-body">
+          <div id="panel-spinner" class="hidden">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          </div>
+          <div id="panel-content"></div>
+        </div>
+        <div id="panel-actions" class="hidden">
+          <button id="copy-btn">Copy</button>
+        </div>
+      </div>
+
+      <div id="bubble" class="hidden"></div>
+
+      <div id="settings-overlay" class="hidden">
+        <div class="settings-head">
+          <span>cat settings</span>
+          <button id="settings-close" title="close">×</button>
+        </div>
+        <label class="settings-row">
+          <input type="checkbox" id="voice-toggle" />
+          <span>voice</span>
+        </label>
+        <label class="settings-row">
+          <span>voice profile</span>
+          <select id="voice-profile">
+            <option value="soft">soft (Rachel)</option>
+            <option value="curious">curious (Domi)</option>
+            <option value="bright">bright (Elli)</option>
+            <option value="low">low (Bella)</option>
+            <option value="whisper">whisper (Charlotte)</option>
+          </select>
+        </label>
+        <label class="settings-row">
+          <input type="checkbox" id="auto-voice" />
+          <span>match voice to work type</span>
+        </label>
+        <div id="voice-status"></div>
+      </div>
+
+      <div id="cat-wrapper" title="drag · click to refresh">
+        <button id="mic-btn" title="hold or click to talk to the cat">🎙</button>
+        <button id="settings-btn" title="settings">⚙</button>
+        <div id="cat-stack">
+          <img id="s-puddle"  class="cat-sprite active" src="./assets/cat_puddle.png"   alt="cat" draggable="false" />
+          <img id="s-awake"   class="cat-sprite"        src="./assets/cat_awake.png"    alt=""    draggable="false" />
+          <img id="s-sleep"   class="cat-sprite"        src="./assets/cat_sleep.png"    alt=""    draggable="false" />
+          <img id="s-walk1"   class="cat-sprite"        src="./assets/cat_walk1.png"    alt=""    draggable="false" />
+          <img id="s-walk2"   class="cat-sprite"        src="./assets/cat_walk2.png"    alt=""    draggable="false" />
+          <img id="s-annoyed" class="cat-sprite"        src="./assets/cat_annoyed.png"  alt=""    draggable="false" />
+          <img id="s-play"    class="cat-sprite"        src="./assets/cat_ball_play.png" alt=""   draggable="false" />
+        </div>
       </div>
     </div>
     <script src="./renderer.js"></script>
