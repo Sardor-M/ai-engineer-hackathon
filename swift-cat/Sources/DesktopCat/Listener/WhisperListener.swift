@@ -20,7 +20,7 @@ final class WhisperListener: NSObject, ListenerEngine {
     private let apiKey: String?
     private let session: URLSession
     private let audioEngine = AVAudioEngine()
-    private var buffers: [AVAudioPCMBuffer] = []
+    private let accumulator = BufferAccumulator()
     private var format: AVAudioFormat?
     private var callbacks: ListenerCallbacks?
     private var captureCap: Task<Void, Never>?
