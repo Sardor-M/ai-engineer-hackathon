@@ -7,8 +7,10 @@ Native macOS rewrite of the Electron cat. See [`../docs/SWIFT_REWRITE.md`](../do
 | Phase | Status | What it covers |
 |---|---|---|
 | 1 — Foundation | ✅ shipped | Window, sprite stack, drag, breath, crossfade |
-| 2 — System integrations | ✅ this branch | FrontmostWatcher, MailReader, ScreenCapture, CursorMonitor, Permissions, Settings + Memory stores, .app bundling |
-| 3 — AI brain | ⏳ next | OpenAI + Gemini dispatcher, ElevenLabs, Whisper, SFSpeechRecognizer |
+| 2 — System integrations | ✅ shipped | FrontmostWatcher, MailReader, ScreenCapture, CursorMonitor, Permissions, Settings + Memory stores, .app bundling |
+| 3a — Brain | ✅ this branch | OpenAI + Gemini dispatcher, five prompts ported verbatim, 60-min rate-limit cooldown, wired into click → proactive + 30s idle loop + PDF / email modes |
+| 3b — Voice | ⏳ next | ElevenLabs TTS + AVSpeechSynthesizer fallback, profile auto-switch |
+| 3c — Listener | ⏳ next | SFSpeechRecognizer on-device + Whisper fallback |
 | 4 — UI polish | ⏳ later | Speech bubble, active panel, settings overlay, per-profile color + animation, walking cycle |
 
 ## Build & run
@@ -49,6 +51,23 @@ The cat sprite physically reacts:
 - ~22 s of no activity → cat settles back to puddle
 
 Click the cat → runs the capture pipeline end-to-end (prints capture byte size) so you can confirm `screencapture` is granted before Phase 3 lands.
+
+## Phase 3a — what works now
+
+With `OPENAI_API_KEY` (and/or `GEMINI_API_KEY`) in your environment, the brain is now live behind the same triggers — outputs go to stdout pending the Phase 4 UI:
+
+```
+[cat] frontmost mode=pdf  app=Preview  title=paper.pdf
+[cat] pdf summary: ah — they're showing that masked tokens still beat a no-pretraining baseline on the smaller corpus…
+[cat] clicked — would trigger proactiveAssist  (replaced)
+[cat] proactiveAssist: hm, three tabs of stack overflow. it's that kind of bug.
+[cat] autonomous: the page is patient. so is the chair. (tag=writing-pause)
+[cat] email summary: alice is asking whether tuesday still works for the demo.
+[cat] email draft reply: hi alice, tuesday works on my end…
+[cat] email ask: have we confirmed the meeting room yet?
+```
+
+Provider selection: tries OpenAI first; falls through to Gemini on empty / 429. A 429 from either provider freezes only that provider for 60 minutes (matches the Electron behavior). Pull `OPENAI_API_KEY` and set `GEMINI_API_KEY` to verify the fallback path.
 
 ## Permissions (first run)
 
