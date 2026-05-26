@@ -57,6 +57,9 @@ protocol ListenerEngine: AnyObject, Sendable {
 enum ListenerError: Error, CustomStringConvertible, Sendable {
     case micDenied
     case recognizerUnavailable
+    /// User explicitly denied Speech Recognition permission. Terminal — do not
+    /// fall back to another engine and upload mic audio without consent.
+    case speechPermissionDenied
     case audioEngineFailed(String)
     case apiKeyMissing
     case network(String)
@@ -65,6 +68,7 @@ enum ListenerError: Error, CustomStringConvertible, Sendable {
         switch self {
         case .micDenied: return "microphone permission denied"
         case .recognizerUnavailable: return "speech recognizer unavailable for this locale"
+        case .speechPermissionDenied: return "Speech Recognition permission denied by user"
         case .audioEngineFailed(let s): return "audio engine failed: \(s)"
         case .apiKeyMissing: return "WHISPER_API_KEY / OPENAI_API_KEY not set"
         case .network(let s): return "network: \(s)"

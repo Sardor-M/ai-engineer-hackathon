@@ -36,13 +36,13 @@ final class SpeechListener: NSObject, ListenerEngine {
 
     nonisolated var isAvailable: Bool {
         get async {
-            // The recognizer can flip availability based on network reachability
-            // for non-on-device locales. Treat any availability as "we can try".
-            // Authorization is requested lazily on first start; an unauthorized
-            // call throws from `start`.
+            // Only signal availability when the locale supports on-device
+            // recognition. If it doesn't, SFSpeechRecognizer would silently
+            // fall back to Apple's cloud service — we prefer to let
+            // WhisperListener handle the network path explicitly.
             await MainActor.run {
                 guard let r = self.recognizer else { return false }
-                return r.isAvailable
+                return r.isAvailable && r.supportsOnDeviceRecognition
             }
         }
     }
@@ -57,7 +57,10 @@ final class SpeechListener: NSObject, ListenerEngine {
         // first call; subsequent calls return cached status synchronously.
         let speechStatus = await Self.requestSpeechAuthorization()
         guard speechStatus == .authorized else {
-            throw ListenerError.recognizerUnavailable
+            // Use a distinct error so the dispatcher doesn't fall through to
+            // WhisperListener — uploading mic audio after an explicit denial
+            // would be a privacy violation.
+            throw ListenerError.speechPermissionDenied
         }
 
         let micGranted = await Self.requestMicAccess()

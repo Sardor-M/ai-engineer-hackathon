@@ -44,6 +44,13 @@ final class Listener {
                 activeEngine = engine
                 print("[listener] \(engine.name) → listening")
                 return engine.name
+            } catch ListenerError.speechPermissionDenied {
+                // User explicitly denied Speech Recognition. Don't fall through
+                // to the next engine — that would upload mic audio without
+                // consent.
+                print("[listener] speech permission denied — not falling back")
+                callbacks.onFinal("")
+                return nil
             } catch let e as ListenerError {
                 print("[listener] \(engine.name) refused: \(e)")
                 continue
