@@ -23,7 +23,7 @@ the Electron cat at the root stays shippable while the Swift rewrite grows in
 - Use `URLSession` directly for HTTP. Don't pull in `Alamofire` etc. for a few requests.
 - Resources (PNGs, JSON) go under `Sources/DesktopCat/Resources/` and are loaded via `Bundle.module`. Don't hard-code absolute paths.
 - Persist user state under `~/Library/Application Support/DesktopCat/` via `AppSupport.swift` helpers, never `UserDefaults` for anything non-trivial.
-- Network keys live in env vars (`OPENAI_API_KEY`, `GEMINI_API_KEY`, `ELEVENLABS_API_KEY`) — never commit them and never read them from disk.
+- Network keys live in env vars (`OPENAI_API_KEY`, `GEMINI_API_KEY`, `ELEVENLABS_API_KEY`, `WHISPER_API_KEY`) — never commit them and never read them from disk.
 
 ### Electron (`/` root, legacy)
 
