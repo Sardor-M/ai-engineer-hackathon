@@ -22,6 +22,7 @@ final class SpeechBubble {
     private weak var anchor: NSWindow?
     private var moveObserver: NSObjectProtocol?
     private var hideTask: Task<Void, Never>?
+    private var currentUtteranceID: UUID?
 
     init(anchor: NSWindow) {
         self.anchor = anchor
@@ -64,24 +65,31 @@ final class SpeechBubble {
         }
     }
 
-    /// Show `text`. Replaces any current text. Caller is responsible for
-    /// calling `hide` (or `hide(after:)`) when the utterance ends.
-    func show(_ text: String) {
+    /// Show `text`. Replaces any current text. Returns a UUID that the caller
+    /// should pass to `hide(id:)` so stale `onDone` callbacks from a previous
+    /// utterance cannot hide a newer bubble.
+    @discardableResult
+    func show(_ text: String) -> UUID {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { hide(); return }
+        guard !trimmed.isEmpty else { hide(); return UUID() }
         hideTask?.cancel()
         hideTask = nil
+
+        let id = UUID()
+        currentUtteranceID = id
 
         model.text = trimmed
         model.visible = true
         panel.orderFrontRegardless()
         reposition()
+        return id
     }
 
-    /// Fade out and order out. Optional delay before the fade starts — used
-    /// by the coordinator when voice is disabled and we need a soft timeout
-    /// proportional to text length.
-    func hide(after delay: TimeInterval = 0) {
+    /// Fade out and order out. Pass the `id` returned by `show(_:)` so that a
+    /// stale `onDone` from a previous utterance cannot hide a newer bubble.
+    /// When `id` is `nil` (barge-in path) the bubble hides unconditionally.
+    func hide(id: UUID? = nil, after delay: TimeInterval = 0) {
+        if let id, id != currentUtteranceID { return }
         hideTask?.cancel()
         hideTask = Task { [weak self] in
             if delay > 0 {
