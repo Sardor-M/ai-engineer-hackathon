@@ -120,7 +120,10 @@ final class WhisperListener: NSObject, ListenerEngine {
         guard wav.count > 1000 else { return "" }
 
         let boundary = "----DesktopCat-\(UUID().uuidString)"
-        var request = URLRequest(url: URL(string: "https://api.openai.com/v1/audio/transcriptions")!)
+        guard let transcriptionURL = URL(string: "https://api.openai.com/v1/audio/transcriptions") else {
+            return ""
+        }
+        var request = URLRequest(url: transcriptionURL)
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
