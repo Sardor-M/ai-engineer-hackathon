@@ -189,7 +189,7 @@ final class CatCoordinator {
                 Log.cat.info("proactiveAssist: (silent)")
                 return
             }
-            Log.cat.info("proactiveAssist: \(line)")
+            Log.cat.info("proactiveAssist len=\(line.count) fp=\(fingerprint(line))")
             memory.append(Observation(
                 at: Date(),
                 description: nil,
@@ -214,7 +214,7 @@ final class CatCoordinator {
                 let snapshot = self.memory.current
                 let result = await self.brain.getCatResponse(description: description, memory: snapshot)
                 if !result.response.isEmpty {
-                    Log.cat.info("autonomous: \(result.response) (tag=\(result.tag))")
+                    Log.cat.info("autonomous len=\(result.response.count) fp=\(fingerprint(result.response)) tag=\(result.tag)")
                 }
                 self.memory.append(Observation(
                     at: Date(),
@@ -244,7 +244,7 @@ final class CatCoordinator {
                     Log.cat.info("pdf summary: (silent)")
                     return
                 }
-                Log.cat.info("pdf summary: \(summary)")
+                Log.cat.info("pdf summary len=\(summary.count) fp=\(fingerprint(summary))")
                 self.memory.append(Observation(
                     at: Date(),
                     description: "PDF page summarized",
@@ -272,22 +272,22 @@ final class CatCoordinator {
                 Log.cat.info("email: no selection")
                 return
             }
-            let fingerprint = "\(mail.subject)|\(mail.sender)|\(mail.body.count)"
-            if fingerprint == self.lastEmailFingerprint {
+            let dedupeKey = "\(mail.subject)|\(mail.sender)|\(mail.body.count)"
+            if dedupeKey == self.lastEmailFingerprint {
                 return  // same message — skip re-analyzing
             }
-            self.lastEmailFingerprint = fingerprint
+            self.lastEmailFingerprint = dedupeKey
 
-            Log.cat.info("email selection: subject=\"\(mail.subject)\" from=\(mail.sender) bodyLen=\(mail.body.count)")
+            Log.cat.info("email selection: subjectLen=\(mail.subject.count) subjectFp=\(fingerprint(mail.subject)) from=\(mail.sender) bodyLen=\(mail.body.count)")
             let result = await self.brain.analyzeEmail(mail)
             if !result.summary.isEmpty {
-                Log.cat.info("email summary: \(result.summary)")
+                Log.cat.info("email summary len=\(result.summary.count) fp=\(fingerprint(result.summary))")
             }
             if !result.draftReply.isEmpty {
-                Log.cat.info("email draft reply: \(result.draftReply.prefix(200))…")
+                Log.cat.info("email draft reply len=\(result.draftReply.count) fp=\(fingerprint(result.draftReply))")
             }
             if !result.clarifyingQuestion.isEmpty {
-                Log.cat.info("email ask: \(result.clarifyingQuestion)")
+                Log.cat.info("email ask len=\(result.clarifyingQuestion.count) fp=\(fingerprint(result.clarifyingQuestion))")
             }
             self.memory.append(Observation(
                 at: Date(),
@@ -329,6 +329,8 @@ final class CatCoordinator {
     }
 
     // MARK: - Helpers
+
+    private func fingerprint(_ s: String) -> String { String(s.hashValue, radix: 16) }
 
     /// Returns the first 1-2 sentences of `s`, capped at `max` characters. Used
     /// when we want to *speak* a passage but show the full thing in a panel.
@@ -443,7 +445,7 @@ final class CatCoordinator {
             guard let self else { return }
             let reply = await self.brain.replyToUser(text)
             if reply.isEmpty { return }
-            Log.cat.info("reply: \(reply)")
+            Log.cat.info("reply len=\(reply.count) fp=\(fingerprint(reply))")
             self.memory.append(Observation(
                 at: Date(),
                 description: nil,
