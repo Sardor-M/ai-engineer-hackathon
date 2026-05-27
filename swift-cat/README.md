@@ -10,8 +10,11 @@ Native macOS rewrite of the Electron cat. See [`../docs/SWIFT_REWRITE.md`](../do
 | 2 — System integrations | ✅ shipped | FrontmostWatcher, MailReader, ScreenCapture, CursorMonitor, Permissions, Settings + Memory stores, .app bundling |
 | 3a — Brain | ✅ shipped | OpenAI + Gemini dispatcher, five prompts ported verbatim, 60-min rate-limit cooldown, wired into click → proactive + 60s idle loop + PDF / email modes |
 | 3b — Voice | ✅ shipped | ElevenLabs TTS via AVAudioPlayer, AVSpeechSynthesizer fallback, VoicePicker auto-switch by mode + night hours, spoken after every brain output |
-| 3c — Listener | ✅ this branch | SFSpeechRecognizer on-device + Whisper fallback, Cmd+Shift+L toggle, transcript → reply → speak loop |
-| 4 — UI polish | ⏳ next | Speech bubble, active panel, settings overlay, per-profile color + animation, walking cycle |
+| 3c — Listener | ✅ shipped | SFSpeechRecognizer on-device + Whisper fallback, Cmd+Shift+L toggle, transcript → reply → speak loop |
+| 4a — Bubble + mic button | ✅ this branch | Cream `NSPanel` speech bubble tracking the cat; mic button overlay in the cat window |
+| 4b — Active panel | ⏳ next | SwiftUI panel for PDF body + Email Summary/Reply/Ask tabs |
+| 4c — Settings overlay | ⏳ later | Voice / profile / auto-by-context toggles |
+| 4d — Animations | ⏳ later | Per-profile color tint, breath, talking, walking cycle |
 
 ## Build & run
 
@@ -109,6 +112,25 @@ utterance.
 Env knobs added on this branch:
 - `WHISPER_API_KEY` — explicit override for the Whisper fallback. Falls back to `OPENAI_API_KEY` when unset, since OpenAI keys cover both endpoints.
 
+## Phase 4a — what works now
+
+The cat is no longer silent on screen:
+
+- A small cream **speech bubble** (`SpeechBubble.swift`) floats above the cat
+  for every brain output: proactive replies, autonomous observations, PDF
+  summaries, Mail summaries, and replies to mic input. The bubble follows
+  the cat when you drag her and fades away when audio playback ends (or
+  after a length-scaled timeout if voice is disabled).
+- A **mic button** (`MicButton.swift`) lives in the cat window's
+  bottom-right corner. Invisible until you hover the cat, then a small
+  black dot appears. Click it to start listening; it pulses red while the
+  listener is active. `Cmd+Shift+L` still works as a fallback.
+
+```
+[cat] proactiveAssist: hm, three tabs of stack overflow. it's that kind of bug.
+   (bubble fades in above the cat, audio plays, bubble fades out on completion)
+```
+
 ## Permissions (first run)
 
 For full functionality, grant in System Settings → Privacy & Security:
@@ -160,6 +182,9 @@ swift-cat/
     │   ├── ListenerEngine.swift
     │   ├── SpeechListener.swift ← SFSpeechRecognizer (on-device)
     │   └── WhisperListener.swift
+    ├── UI/
+    │   ├── SpeechBubble.swift   ← floating NSPanel + SwiftUI content
+    │   └── MicButton.swift      ← cat-corner mic overlay
     ├── Storage/
     │   ├── AppSupport.swift
     │   ├── Settings.swift
