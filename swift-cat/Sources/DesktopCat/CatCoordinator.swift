@@ -28,6 +28,7 @@ final class CatCoordinator {
     private var hotkeyMonitor: Any?
     private var localHotkeyMonitor: Any?
     private var listenInFlight = false
+    private var listenSessionID: Int = 0
 
     // UI (Phase 4a).
     private let bubble: SpeechBubble
@@ -394,6 +395,8 @@ final class CatCoordinator {
 
         guard !listenInFlight else { return }
         listenInFlight = true
+        listenSessionID &+= 1
+        let sessionID = listenSessionID
         wakeUp()
         catView.micButton.setListening(true)
         print("[listener] starting…")
@@ -407,7 +410,7 @@ final class CatCoordinator {
                 self.wakeUp()
             },
             onFinal: { [weak self] text in
-                guard let self else { return }
+                guard let self, self.listenSessionID == sessionID else { return }
                 self.listenInFlight = false
                 self.catView.micButton.setListening(false)
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
