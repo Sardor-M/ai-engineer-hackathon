@@ -310,20 +310,20 @@ final class CatCoordinator {
     private func showAndSpeak(_ displayed: String, spoken: String? = nil, mode: VoiceMode) async {
         let trimmed = displayed.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        bubble.show(trimmed)
+        let id = bubble.show(trimmed)
 
         let speakText = (spoken ?? trimmed).trimmingCharacters(in: .whitespacesAndNewlines)
         let played = await voice.speak(
             speakText,
             mode: mode,
             settings: settings.current,
-            onDone: { [weak self] in self?.bubble.hide() }
+            onDone: { [weak self] in self?.bubble.hide(id: id) }
         )
         if played == nil {
             // No engine played — fall back to a soft timeout proportional to
             // the displayed text length (~70 ms/char, floor 2.5 s, ceiling 12 s).
             let estimate = max(2.5, min(12.0, Double(trimmed.count) * 0.07))
-            bubble.hide(after: estimate)
+            bubble.hide(id: id, after: estimate)
         }
     }
 
