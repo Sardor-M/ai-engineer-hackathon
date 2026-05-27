@@ -22,13 +22,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let brain = Brain.defaultStack()
             let voice = Voice.defaultStack()
             let listener = Listener.defaultStack()
+            let bubble = SpeechBubble(anchor: window)
             let c = CatCoordinator(
                 catView: view,
                 settings: s,
                 memory: m,
                 brain: brain,
                 voice: voice,
-                listener: listener
+                listener: listener,
+                bubble: bubble
             )
             c.start()
             self.coordinator = c

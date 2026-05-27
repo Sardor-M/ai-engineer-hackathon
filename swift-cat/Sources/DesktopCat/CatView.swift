@@ -10,6 +10,10 @@ final class CatView: NSView {
     /// Fires once per click-without-drag.
     var onClick: (() -> Void)?
 
+    /// Mic affordance overlay in the bottom-right corner. Coordinator wires
+    /// its `onToggle` to the listener.
+    let micButton = MicButton()
+
     private let puddleLayer = CALayer()
     private let awakeLayer  = CALayer()
 
@@ -25,6 +29,8 @@ final class CatView: NSView {
     private var dragWindowStart: NSPoint = .zero
     private var didDrag = false
 
+    private var hoverTracking: NSTrackingArea?
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
@@ -34,6 +40,7 @@ final class CatView: NSView {
 
         setupSprites()
         startBreathing()
+        setupMicButton()
     }
 
     required init?(coder: NSCoder) {
@@ -134,5 +141,41 @@ final class CatView: NSView {
         if !didDrag { onClick?() }
     }
 
-    // Default hit test (whole bounds) is fine for Phase 1 — matches Electron.
+    // MARK: - Mic button overlay (Phase 4a)
+
+    private func setupMicButton() {
+        // Bottom-right of the cat window, tucked a few pt from the edge so
+        // it doesn't fight the sprite's silhouette.
+        let inset: CGFloat = 14
+        micButton.frame = NSRect(
+            x: bounds.maxX - micButton.frame.width - inset,
+            y: inset,
+            width: micButton.frame.width,
+            height: micButton.frame.height
+        )
+        addSubview(micButton)
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let existing = hoverTracking {
+            removeTrackingArea(existing)
+        }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        hoverTracking = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        micButton.setRevealed(true)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        micButton.setRevealed(false)
+    }
 }
