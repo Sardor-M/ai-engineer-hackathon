@@ -115,7 +115,7 @@ final class MicButton: NSView {
         glyph.fontSize = 18
         glyph.font = NSFont.systemFont(ofSize: 18) as CFTypeRef
         glyph.string = "●"   // simple dot — replaced by SF Symbol if/when we add asset support
-        glyph.contentsScale = NSScreen.main?.backingScaleFactor ?? 2.0
+        glyph.contentsScale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2.0
         // Center the text vertically — CATextLayer baselines high otherwise.
         glyph.frame = bounds.insetBy(dx: 0, dy: 5)
         layer?.addSublayer(glyph)
