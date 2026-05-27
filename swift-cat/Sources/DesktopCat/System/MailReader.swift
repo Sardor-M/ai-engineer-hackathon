@@ -37,7 +37,7 @@ enum MailReader {
             var errorDict: NSDictionary?
             let descriptor = appleScript.executeAndReturnError(&errorDict)
             if let err = errorDict {
-                print("[cat] mail applescript error:", err)
+                Log.cat.error("mail applescript error: \(err)")
                 return nil
             }
             guard

@@ -28,7 +28,7 @@ actor RateLimiter {
     /// inside the cooldown window just refreshes the clock.
     func markBlocked(_ provider: String, reason: String) {
         blockedUntil[provider] = Date().addingTimeInterval(cooldown)
-        print("[brain] \(provider) rate-limit — backing off 60 min: \(reason.prefix(120))")
+        Log.brain.warn("\(provider) rate-limit — backing off 60 min: \(reason.prefix(120))")
     }
 
     /// Debug snapshot of who's blocked and for how much longer (seconds).

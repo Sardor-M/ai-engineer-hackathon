@@ -7,6 +7,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var memory: MemoryStore?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Must run before Brain / Voice / Listener init — those providers read
+        // API keys from the environment at construction. When the app is
+        // launched via `open`, the shell environment isn't inherited, so a
+        // .env file in Application Support is how keys get in.
+        DotEnv.load()
+
         installMenuShortcuts()
 
         let s = SettingsStore()
@@ -33,7 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             c.start()
             self.coordinator = c
         } else {
-            print("[cat] WARNING: contentView is not a CatView — coordinator not started")
+            Log.cat.warn("contentView is not a CatView — coordinator not started")
         }
 
         // Surface the cat on first launch so it's visible immediately.

@@ -65,11 +65,11 @@ final class CatView: NSView {
 
     private func loadSprite(_ name: String) -> CGImage? {
         guard let url = Bundle.module.url(forResource: name, withExtension: "png") else {
-            print("[cat] missing sprite: \(name).png")
+            Log.cat.error("missing sprite: \(name).png")
             return nil
         }
         guard let img = NSImage(contentsOf: url) else {
-            print("[cat] failed to decode: \(name).png")
+            Log.cat.error("failed to decode: \(name).png")
             return nil
         }
         var rect = NSRect(origin: .zero, size: img.size)

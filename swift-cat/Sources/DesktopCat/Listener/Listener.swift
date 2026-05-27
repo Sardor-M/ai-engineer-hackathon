@@ -31,7 +31,7 @@ final class Listener {
     @discardableResult
     func start(callbacks: ListenerCallbacks) async -> String? {
         if isListening {
-            print("[listener] already listening — ignoring duplicate start")
+            Log.listener.info("already listening — ignoring duplicate start")
             return activeEngine?.name
         }
         activeEngine = nil
@@ -42,25 +42,25 @@ final class Listener {
             do {
                 try await engine.start(callbacks: callbacks)
                 activeEngine = engine
-                print("[listener] \(engine.name) → listening")
+                Log.listener.info("\(engine.name) → listening")
                 return engine.name
             } catch ListenerError.speechPermissionDenied {
                 // User explicitly denied Speech Recognition. Don't fall through
                 // to the next engine — that would upload mic audio without
                 // consent.
-                print("[listener] speech permission denied — not falling back")
+                Log.listener.warn("speech permission denied — not falling back")
                 callbacks.onFinal("")
                 return nil
             } catch let e as ListenerError {
-                print("[listener] \(engine.name) refused: \(e)")
+                Log.listener.warn("\(engine.name) refused: \(e)")
                 continue
             } catch {
-                print("[listener] \(engine.name) error: \(error.localizedDescription)")
+                Log.listener.error("\(engine.name) error: \(error.localizedDescription)")
                 continue
             }
         }
 
-        print("[listener] no engine could start")
+        Log.listener.warn("no engine could start")
         // The coordinator may still want to know the final result fired (with
         // empty text) so its UI clears state.
         callbacks.onFinal("")

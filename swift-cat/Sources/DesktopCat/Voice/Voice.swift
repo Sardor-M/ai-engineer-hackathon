@@ -53,7 +53,7 @@ final class Voice {
                 return engine.name
             }
         }
-        print("[voice] no engine could speak")
+        Log.voice.warn("no engine could speak")
         return nil
     }
 }

@@ -59,7 +59,7 @@ final class SettingsStore {
         do {
             try enc.encode(s).write(to: url, options: .atomic)
         } catch {
-            print("[cat] settings save failed:", error.localizedDescription)
+            Log.cat.error("settings save failed: \(error.localizedDescription)")
         }
     }
 }

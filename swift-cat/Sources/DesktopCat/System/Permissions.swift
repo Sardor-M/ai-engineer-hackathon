@@ -52,7 +52,7 @@ enum Permissions {
     static func preflight() {
         for p in CatPermission.allCases {
             let ok = p.isGranted()
-            print("[cat] permission \(p.rawValue): \(ok ? "granted" : "not granted (will prompt on first use)")")
+            Log.cat.info("permission \(p.rawValue): \(ok ? "granted" : "not granted (will prompt on first use)")")
         }
     }
 

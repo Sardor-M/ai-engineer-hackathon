@@ -144,7 +144,7 @@ final class WhisperListener: NSObject, ListenerEngine {
         do {
             (data, response) = try await session.data(for: request)
         } catch {
-            print("[listener] whisper network error:", error.localizedDescription)
+            Log.listener.error("whisper network error: \(error.localizedDescription)")
             return ""
         }
 
@@ -154,7 +154,7 @@ final class WhisperListener: NSObject, ListenerEngine {
         else {
             let status = (response as? HTTPURLResponse)?.statusCode ?? -1
             let detail = String(data: data, encoding: .utf8)?.prefix(160) ?? ""
-            print("[listener] whisper \(status):", detail)
+            Log.listener.error("whisper \(status): \(detail)")
             return ""
         }
 
