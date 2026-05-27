@@ -77,7 +77,7 @@ enum DotEnv {
             }
 
             // Don't clobber what the launcher already set.
-            if ProcessInfo.processInfo.environment[key] != nil { continue }
+            if getenv(key) != nil { continue }
             setenv(key, value, 1)
             applied += 1
         }
