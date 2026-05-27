@@ -51,7 +51,7 @@ final class WhisperListener: NSObject, ListenerEngine {
         let micGranted = await Self.requestMicAccess()
         guard micGranted else { throw ListenerError.micDenied }
 
-        self.buffers = []
+        accumulator.clear()
         self.callbacks = callbacks
 
         let input = audioEngine.inputNode
@@ -61,7 +61,7 @@ final class WhisperListener: NSObject, ListenerEngine {
         input.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] buffer, _ in
             // Copy the buffer — the tap reuses storage between callbacks.
             guard let copy = Self.copyBuffer(buffer) else { return }
-            Task { @MainActor in self?.buffers.append(copy) }
+            Task { @MainActor in self?.accumulator.append(copy) }
         }
 
         audioEngine.prepare()
@@ -275,6 +275,27 @@ final class WhisperListener: NSObject, ListenerEngine {
                 }
             }
         @unknown default: return false
+        }
+    }
+}
+
+private final class BufferAccumulator: @unchecked Sendable {
+    private let lock = NSLock()
+    private var buffers: [AVAudioPCMBuffer] = []
+
+    func append(_ buffer: AVAudioPCMBuffer) {
+        lock.withLock { buffers.append(buffer) }
+    }
+
+    func clear() {
+        lock.withLock { buffers.removeAll() }
+    }
+
+    func retrieveAndClear() -> [AVAudioPCMBuffer] {
+        lock.withLock {
+            let result = buffers
+            buffers.removeAll()
+            return result
         }
     }
 }
