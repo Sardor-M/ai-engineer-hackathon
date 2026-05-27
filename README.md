@@ -157,6 +157,54 @@ Check the settings panel — if the warning reads "no ELEVENLABS_API_KEY in .env
 
 ---
 
+## Roadmap
+
+The phases shipped so far leave the cat as a passive presence — she watches, occasionally comments, and otherwise gets out of the way. The work below extends her into an active collaborator on tasks you have *explicitly* shown her. She never acts unprompted, and every plan she would run is reviewable before it fires.
+
+### Show, then run
+
+- [ ] **Demonstration capture** — invoke "show me how" via the bubble or hotkey to start a synchronized screen + microphone recording while you do the task by hand.
+- [ ] **Intent extraction** — condense each recording into an executable plan: not literal keystrokes, but the steps that matter, generalized across apps (open X → find row matching Y → copy field Z → paste into sheet W).
+- [ ] **Plan review UI** — show the extracted plan back before saving; the user edits, accepts, or discards.
+- [ ] **Replayable workflows** — persist plans under `~/Library/Application Support/DesktopCat/workflows/` as JSON. Trigger by name from the bubble or a pinned mic-button menu.
+
+### Triggers
+
+- [ ] **Time-based** — cron-style schedules (daily reconciliation, weekly summary).
+- [ ] **Event-based** — fire on inbound signals: new mail matching a filter, a file dropped into a watched folder, a system notification.
+- [ ] **Conditional branching** — workflows ask the cat to decide mid-run ("is this invoice already logged?") and branch.
+
+### Connectors
+
+Opt-in integrations. Credentials live in `.env` next to the existing API keys.
+
+- [ ] **Browser** — drive Safari / Chrome via AppleScript or WebDriver for sites without an API.
+- [ ] **Mail** — extend the existing read path with draft + send.
+- [ ] **Calendar** — read availability, draft invites.
+- [ ] **Chat** — post messages to a workspace.
+- [ ] **Issue tracker** — file tickets with component + assignee.
+- [ ] **Spreadsheets** — read and append rows in cloud or local sheets.
+
+### Drafting in your voice
+
+- [ ] **Tone fingerprint** — ingest a small corpus of past writing (sent mail, commits, doc edits), build a per-user voice profile, draft replies in that voice.
+
+### Execution surface
+
+- [ ] **Run log** — pane showing the workflow's current step, last action, and a stop button. Nothing the cat does is invisible.
+- [ ] **Dry-run mode** — every new plan runs once in dry-run first: walk the steps but stop short of any irreversible action and print what she *would* do.
+- [ ] **Per-workflow permissions** — confirm-each-time / confirm-once / auto-run, set per workflow.
+
+### Open questions
+
+- Privacy: source-of-truth recordings on disk — encrypt at rest?
+- Plan drift when an app's UI changes — re-record vs. selector repair?
+- CLI surface: `desktopcat run <workflow-name>` in addition to the bubble menu?
+
+None of this changes default behavior. The cat stays silent and reactive until you teach her a task.
+
+---
+
 ## License
 
 MIT.
