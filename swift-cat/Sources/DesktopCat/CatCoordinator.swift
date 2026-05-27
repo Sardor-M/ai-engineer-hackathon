@@ -2,11 +2,11 @@ import AppKit
 import Foundation
 
 /// Bridges system events (frontmost app, cursor, Mail selection, click) to the
-/// cat's visible state AND to the AI brain. Phase 2 proved the wiring; Phase 3a
-/// adds the brain calls — click → proactiveAssist, 30s idle observation loop,
-/// PDF mode summary, Mail mode three-part analysis. UI surfacing (speech bubble,
-/// active panel) lands in Phase 4; for now the brain outputs go to stdout so
-/// you can see them.
+/// cat's visible state AND to the AI brain. Phases 1–3 cover state, brain,
+/// voice, and listener; Phase 4a adds the visible UI — every brain output now
+/// renders in a `SpeechBubble` and a `MicButton` in the cat window's
+/// bottom-right corner replaces the `Cmd+Shift+L` hotkey (which still works as
+/// a fallback).
 @MainActor
 final class CatCoordinator {
 
@@ -28,6 +28,10 @@ final class CatCoordinator {
     private var hotkeyMonitor: Any?
     private var localHotkeyMonitor: Any?
     private var listenInFlight = false
+    private var listenSessionID: Int = 0
+
+    // UI (Phase 4a).
+    private let bubble: SpeechBubble
 
     // System integrations.
     private let frontmost = FrontmostWatcher()
@@ -71,7 +75,8 @@ final class CatCoordinator {
         memory: MemoryStore,
         brain: Brain,
         voice: Voice,
-        listener: Listener
+        listener: Listener,
+        bubble: SpeechBubble
     ) {
         self.catView = catView
         self.settings = settings
@@ -79,6 +84,7 @@ final class CatCoordinator {
         self.brain = brain
         self.voice = voice
         self.listener = listener
+        self.bubble = bubble
     }
 
     func start() {
@@ -102,7 +108,9 @@ final class CatCoordinator {
 
         installListenerHotkey()
 
-        print("[cat] coordinator ready — brain + voice + listener wired (Phase 3a-3c); UI surfaces pending Phase 4")
+        catView.micButton.onToggle = { [weak self] in self?.toggleListen() }
+
+        print("[cat] coordinator ready — bubble + mic wired (Phase 4a)")
     }
 
     func stop() {
@@ -188,7 +196,7 @@ final class CatCoordinator {
                 tag: "proactive",
                 said: line
             ))
-            await voice.speak(line, mode: .auto, settings: settings.current)
+            await showAndSpeak(line, mode: .auto)
         } catch {
             print("[cat] proactiveAssist capture failed:", error.localizedDescription)
         }
@@ -215,7 +223,7 @@ final class CatCoordinator {
                     said: result.response.isEmpty ? nil : result.response
                 ))
                 if !result.response.isEmpty {
-                    await self.voice.speak(result.response, mode: .auto, settings: self.settings.current)
+                    await self.showAndSpeak(result.response, mode: .auto)
                 }
             } catch {
                 print("[cat] observation capture failed:", error.localizedDescription)
@@ -243,11 +251,11 @@ final class CatCoordinator {
                     tag: "pdf-summary",
                     said: summary
                 ))
-                // Speak the first 1-2 sentences — the active panel (Phase 4)
+                // Speak the first 1-2 sentences — the active panel (Phase 4b)
                 // will show the full text. Limit to ~280 chars so ElevenLabs
                 // doesn't bill us for a long, monotone read.
                 let spoken = self.firstSentences(of: summary, max: 280)
-                await self.voice.speak(spoken, mode: .pdf, settings: self.settings.current)
+                await self.showAndSpeak(spoken, mode: .pdf)
             } catch {
                 print("[cat] pdf capture failed:", error.localizedDescription)
             }
@@ -288,8 +296,35 @@ final class CatCoordinator {
                 said: result.summary.isEmpty ? nil : result.summary
             ))
             if !result.summary.isEmpty {
-                await self.voice.speak(result.summary, mode: .email, settings: self.settings.current)
+                await self.showAndSpeak(result.summary, mode: .email)
             }
+        }
+    }
+
+    // MARK: - Bubble + voice helper
+
+    /// Show `displayed` in the speech bubble and speak `spoken` through Voice.
+    /// When `spoken` is nil, the bubble text is also what gets spoken. The
+    /// bubble hides when audio playback finishes; if voice is disabled or
+    /// every engine refuses, the bubble auto-hides after a length-scaled
+    /// timeout so it doesn't sit on screen forever.
+    private func showAndSpeak(_ displayed: String, spoken: String? = nil, mode: VoiceMode) async {
+        let trimmed = displayed.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let id = bubble.show(trimmed)
+
+        let speakText = (spoken ?? trimmed).trimmingCharacters(in: .whitespacesAndNewlines)
+        let played = await voice.speak(
+            speakText,
+            mode: mode,
+            settings: settings.current,
+            onDone: { [weak self] in Task { @MainActor in self?.bubble.hide(id: id) } }
+        )
+        if played == nil {
+            // No engine played — fall back to a soft timeout proportional to
+            // the displayed text length (~70 ms/char, floor 2.5 s, ceiling 12 s).
+            let estimate = max(2.5, min(12.0, Double(trimmed.count) * 0.07))
+            bubble.hide(id: id, after: estimate)
         }
     }
 
@@ -348,15 +383,22 @@ final class CatCoordinator {
         if listener.isListening {
             listener.stop()
             listenInFlight = false
+            catView.micButton.setListening(false)
             return
         }
 
         // Barge-in: if the cat is speaking when the user wants to talk, stop.
-        if voice.isSpeaking { voice.stop() }
+        if voice.isSpeaking {
+            voice.stop()
+            bubble.hide()
+        }
 
         guard !listenInFlight else { return }
         listenInFlight = true
+        listenSessionID &+= 1
+        let sessionID = listenSessionID
         wakeUp()
+        catView.micButton.setListening(true)
         print("[listener] starting…")
 
         let callbacks = ListenerCallbacks(
@@ -368,8 +410,9 @@ final class CatCoordinator {
                 self.wakeUp()
             },
             onFinal: { [weak self] text in
-                guard let self else { return }
+                guard let self, self.listenSessionID == sessionID else { return }
                 self.listenInFlight = false
+                self.catView.micButton.setListening(false)
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if trimmed.isEmpty {
                     print("[listener] final: (empty)")
@@ -407,7 +450,7 @@ final class CatCoordinator {
                 tag: "user-reply",
                 said: reply
             ))
-            await self.voice.speak(reply, mode: .auto, settings: self.settings.current)
+            await self.showAndSpeak(reply, mode: .auto)
         }
     }
 
