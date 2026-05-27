@@ -23,6 +23,12 @@ final class CatCoordinator {
     // Voice (Phase 3b).
     private let voice: Voice
 
+    // Listener (Phase 3c).
+    private let listener: Listener
+    private var hotkeyMonitor: Any?
+    private var localHotkeyMonitor: Any?
+    private var listenInFlight = false
+
     // System integrations.
     private let frontmost = FrontmostWatcher()
     private let cursor = CursorMonitor()
@@ -64,13 +70,15 @@ final class CatCoordinator {
         settings: SettingsStore,
         memory: MemoryStore,
         brain: Brain,
-        voice: Voice
+        voice: Voice,
+        listener: Listener
     ) {
         self.catView = catView
         self.settings = settings
         self.memory = memory
         self.brain = brain
         self.voice = voice
+        self.listener = listener
     }
 
     func start() {
@@ -92,13 +100,20 @@ final class CatCoordinator {
             Task { @MainActor in self?.runObservationTick() }
         }
 
-        print("[cat] coordinator ready — brain + voice wired (Phase 3a+3b); UI surfaces pending Phase 4")
+        installListenerHotkey()
+
+        print("[cat] coordinator ready — brain + voice + listener wired (Phase 3a-3c); UI surfaces pending Phase 4")
     }
 
     func stop() {
         frontmost.stop()
         cursor.stop()
         voice.stop()
+        listener.stop()
+        if let m = hotkeyMonitor { NSEvent.removeMonitor(m) }
+        hotkeyMonitor = nil
+        if let lm = localHotkeyMonitor { NSEvent.removeMonitor(lm) }
+        localHotkeyMonitor = nil
         idleTimer?.invalidate()
         idleTimer = nil
         observationTimer?.invalidate()
@@ -299,6 +314,101 @@ final class CatCoordinator {
         }
         let result = out.isEmpty ? trimmed : out
         return result.count > max ? String(result.prefix(max)) : result
+    }
+
+    // MARK: - Listener (Phase 3c)
+
+    /// Global Cmd+Shift+L toggles the mic. Replaced by the mic button on the
+    /// cat window in Phase 4. Requires Accessibility for the global monitor;
+    /// when denied, the user can still get the same effect by activating the
+    /// app and using the local-monitor path below.
+    private func installListenerHotkey() {
+        let handler: (NSEvent) -> Void = { [weak self] event in
+            guard let self else { return }
+            let isCmdShift = event.modifierFlags.intersection([.command, .shift]) == [.command, .shift]
+            // 0x25 = "L" virtual key on US layouts. Hard-coded for now; Phase 4
+            // exposes this in settings.
+            guard isCmdShift, event.keyCode == 0x25 else { return }
+            self.toggleListen()
+        }
+
+        hotkeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown]) { event in
+            Task { @MainActor in handler(event) }
+        }
+
+        // Local monitor as a fallback when the cat happens to be the active
+        // app (rare with .accessory policy, but possible after a click).
+        localHotkeyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { event in
+            handler(event)
+            return event
+        }
+    }
+
+    private func toggleListen() {
+        if listener.isListening {
+            listener.stop()
+            listenInFlight = false
+            return
+        }
+
+        // Barge-in: if the cat is speaking when the user wants to talk, stop.
+        if voice.isSpeaking { voice.stop() }
+
+        guard !listenInFlight else { return }
+        listenInFlight = true
+        wakeUp()
+        print("[listener] starting…")
+
+        let callbacks = ListenerCallbacks(
+            onPartial: { [weak self] text in
+                guard let self, !text.isEmpty else { return }
+                // Trim to a short prefix so a long partial doesn't spam logs.
+                let preview = text.count > 60 ? String(text.prefix(60)) + "…" : text
+                print("[listener] partial:", preview)
+                self.wakeUp()
+            },
+            onFinal: { [weak self] text in
+                guard let self else { return }
+                self.listenInFlight = false
+                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.isEmpty {
+                    print("[listener] final: (empty)")
+                    return
+                }
+                print("[listener] final:", trimmed)
+                self.handleUserUtterance(trimmed)
+            },
+            onError: { warning in
+                print("[listener] warning:", warning)
+            }
+        )
+
+        Task { [weak self] in
+            await self?.listener.start(callbacks: callbacks)
+        }
+    }
+
+    private func handleUserUtterance(_ text: String) {
+        memory.append(Observation(
+            at: Date(),
+            description: "user said: \(text.prefix(80))",
+            tag: "user-utterance",
+            said: nil
+        ))
+
+        Task { [weak self] in
+            guard let self else { return }
+            let reply = await self.brain.replyToUser(text)
+            if reply.isEmpty { return }
+            print("[cat] reply:", reply)
+            self.memory.append(Observation(
+                at: Date(),
+                description: nil,
+                tag: "user-reply",
+                said: reply
+            ))
+            await self.voice.speak(reply, mode: .auto, settings: self.settings.current)
+        }
     }
 
     // MARK: - Idle / wake helpers
