@@ -318,7 +318,7 @@ final class CatCoordinator {
             speakText,
             mode: mode,
             settings: settings.current,
-            onDone: { [weak self] in self?.bubble.hide(id: id) }
+            onDone: { [weak self] in Task { @MainActor in self?.bubble.hide(id: id) } }
         )
         if played == nil {
             // No engine played — fall back to a soft timeout proportional to
