@@ -23,6 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let voice = Voice.defaultStack()
             let listener = Listener.defaultStack()
             let bubble = SpeechBubble(anchor: window)
+            let panel = ActivePanel(anchor: window)
             let c = CatCoordinator(
                 catView: view,
                 settings: s,
@@ -30,7 +31,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 brain: brain,
                 voice: voice,
                 listener: listener,
-                bubble: bubble
+                bubble: bubble,
+                panel: panel
             )
             c.start()
             self.coordinator = c
