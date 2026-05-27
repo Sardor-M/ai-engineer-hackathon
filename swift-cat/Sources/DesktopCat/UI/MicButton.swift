@@ -21,7 +21,6 @@ final class MicButton: NSView {
 
     private let circle = CALayer()
     private let glyph = CATextLayer()
-    private var trackingArea: NSTrackingArea?
     private var revealed = false
     private var listening = false
 
@@ -72,21 +71,6 @@ final class MicButton: NSView {
     }
 
     // MARK: - Hit testing
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        if let existing = trackingArea {
-            removeTrackingArea(existing)
-        }
-        let area = NSTrackingArea(
-            rect: bounds,
-            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
-            owner: self,
-            userInfo: nil
-        )
-        addTrackingArea(area)
-        trackingArea = area
-    }
 
     override func mouseDown(with event: NSEvent) {
         // Swallow the event so CatView's drag handler doesn't grab it.
@@ -158,15 +142,5 @@ final class MicButton: NSView {
 
     private func stopPulse() {
         circle.removeAnimation(forKey: "pulse")
-    }
-
-    // MARK: - Hover
-
-    override func mouseEntered(with event: NSEvent) {
-        setRevealed(true)
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        setRevealed(false)
     }
 }
