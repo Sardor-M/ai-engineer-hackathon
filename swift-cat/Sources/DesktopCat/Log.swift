@@ -11,10 +11,11 @@ import os
 ///   `com.amelia.desktopcat`, or
 ///   `log stream --process DesktopCat --info`.
 ///
-/// `os.Logger` redacts interpolated values by default; we mark everything
-/// `.public` so log output is readable in Console.app. This is fine because
-/// nothing the cat logs is itself sensitive (we already truncate captures
-/// and email bodies to lengths / fingerprints).
+/// `os.Logger` redacts interpolated values by default (`.private`) so raw
+/// payloads can never leak into the unified log even if a call site
+/// accidentally passes unsanitised content. Use the `*Public` variants only
+/// when the message is confirmed non-sensitive (e.g. status codes, enum tags,
+/// already-fingerprinted metadata strings).
 enum Log {
     private static let subsystem = "com.amelia.desktopcat"
 
@@ -23,6 +24,21 @@ enum Log {
     static let voice    = Category("voice")
     static let brain    = Category("brain")
     static let env      = Category("env")
+
+    /// Wraps a sensitive string so logging helpers can emit only
+    /// length + fingerprint metadata rather than the raw content.
+    /// Use for screen captures, mail bodies, or any user-derived text.
+    struct Sensitive {
+        let count: Int
+        let fingerprint: String
+
+        init(_ s: String) {
+            count = s.count
+            fingerprint = String(s.hashValue, radix: 16)
+        }
+
+        var metadata: String { "len=\(count) fp=\(fingerprint)" }
+    }
 
     struct Category {
         let name: String
@@ -33,23 +49,54 @@ enum Log {
             self.logger = Logger(subsystem: Log.subsystem, category: name)
         }
 
-        /// Normal informational line — what the cat is doing.
+        // MARK: Default (private) — safe for any message
+
+        /// Log an informational message. Content is redacted in Console.app;
+        /// still visible via stdout when running from terminal.
         func info(_ message: String) {
+            print("[\(name)] \(message)")
+            logger.info("\(message, privacy: .private)")
+        }
+
+        func warn(_ message: String) {
+            print("[\(name)] WARN: \(message)")
+            logger.warning("\(message, privacy: .private)")
+        }
+
+        func error(_ message: String) {
+            print("[\(name)] ERROR: \(message)")
+            logger.error("\(message, privacy: .private)")
+        }
+
+        // MARK: Explicit public opt-in — use only for confirmed non-sensitive strings
+
+        func infoPublic(_ message: String) {
             print("[\(name)] \(message)")
             logger.info("\(message, privacy: .public)")
         }
 
-        /// Something off but not fatal. Prefixed `WARN:` in stdout to match
-        /// the unified-log level rendering.
-        func warn(_ message: String) {
+        func warnPublic(_ message: String) {
             print("[\(name)] WARN: \(message)")
             logger.warning("\(message, privacy: .public)")
         }
 
-        /// A failed network call, missing key, denied permission, etc.
-        func error(_ message: String) {
+        func errorPublic(_ message: String) {
             print("[\(name)] ERROR: \(message)")
             logger.error("\(message, privacy: .public)")
+        }
+
+        // MARK: Sensitive payload helpers — always emits metadata only, visible in Console.app
+
+        func info(sensitive label: String, _ payload: Log.Sensitive) {
+            let msg = "\(label) \(payload.metadata)"
+            print("[\(name)] \(msg)")
+            logger.info("\(msg, privacy: .public)")
+        }
+
+        func error(sensitive label: String, _ payload: Log.Sensitive) {
+            let msg = "\(label) \(payload.metadata)"
+            print("[\(name)] ERROR: \(msg)")
+            logger.error("\(msg, privacy: .public)")
         }
     }
 }
