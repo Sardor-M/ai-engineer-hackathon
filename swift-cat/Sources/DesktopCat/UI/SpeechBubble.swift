@@ -122,8 +122,9 @@ final class SpeechBubble {
         // Bubble bottom sits just above the cat's head with a small overlap.
         let originY = cat.maxY - 30
 
+        let screen = anchor.screen ?? NSScreen.main
         let clampedX: CGFloat
-        if let visible = NSScreen.main?.visibleFrame {
+        if let visible = screen?.visibleFrame {
             clampedX = max(visible.minX + 8, min(originX, visible.maxX - panelWidth - 8))
         } else {
             clampedX = originX
