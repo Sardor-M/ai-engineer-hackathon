@@ -62,7 +62,7 @@ final class MemoryStore {
         do {
             try enc.encode(current).write(to: url, options: .atomic)
         } catch {
-            print("[cat] memory save failed:", error.localizedDescription)
+            Log.cat.error("memory save failed: \(error.localizedDescription)")
         }
     }
 }

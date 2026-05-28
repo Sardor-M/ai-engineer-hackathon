@@ -50,7 +50,7 @@ struct OpenAIChat: ChatProvider {
         do {
             (data, response) = try await session.data(for: request)
         } catch {
-            print("[brain] openai network error:", error.localizedDescription)
+            Log.brain.error("openai network error: \(error.localizedDescription)")
             return ""
         }
 
@@ -61,7 +61,7 @@ struct OpenAIChat: ChatProvider {
             if http.statusCode == 429 || matchesRateLimit(errText) {
                 await RateLimiter.shared.markBlocked(name, reason: errText)
             } else {
-                print("[brain] openai \(http.statusCode):", errText.prefix(160))
+                Log.brain.error("openai \(http.statusCode): \(errText.prefix(160))")
             }
             return ""
         }

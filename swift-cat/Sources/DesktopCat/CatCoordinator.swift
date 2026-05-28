@@ -110,7 +110,7 @@ final class CatCoordinator {
 
         catView.micButton.onToggle = { [weak self] in self?.toggleListen() }
 
-        print("[cat] coordinator ready — bubble + mic wired (Phase 4a)")
+        Log.cat.info("coordinator ready — bubble + mic wired (Phase 4a)")
     }
 
     func stop() {
@@ -132,7 +132,7 @@ final class CatCoordinator {
 
     private func handleFrontmost(_ ctx: FrontmostContext) {
         let trimmed = ctx.title?.prefix(60).description ?? ""
-        print("[cat] frontmost mode=\(ctx.mode.rawValue) app=\(ctx.appName) title=\(trimmed)")
+        Log.cat.info("frontmost mode=\(ctx.mode.rawValue) app=\(ctx.appName) title=\(trimmed)")
 
         switch ctx.mode {
         case .pdf:
@@ -149,9 +149,9 @@ final class CatCoordinator {
     private func handleCursor(_ trigger: CursorTrigger) {
         switch trigger {
         case .dwell(let p):
-            print("[cat] cursor dwell at (\(Int(p.x)),\(Int(p.y)))")
+            Log.cat.info("cursor dwell at (\(Int(p.x)),\(Int(p.y)))")
         case .activity(let p):
-            print("[cat] cursor activity near (\(Int(p.x)),\(Int(p.y)))")
+            Log.cat.info("cursor activity near (\(Int(p.x)),\(Int(p.y)))")
         }
         wakeUp()
         // askMouseQuestion (region capture → Brain.askMouseQuestion) is wired
@@ -186,10 +186,10 @@ final class CatCoordinator {
             let memorySnapshot = memory.current
             let line = await brain.proactiveAssist(image, memory: memorySnapshot)
             if line.isEmpty {
-                print("[cat] proactiveAssist: (silent)")
+                Log.cat.info("proactiveAssist: (silent)")
                 return
             }
-            print("[cat] proactiveAssist:", line)
+            Log.cat.info("proactiveAssist len=\(line.count) fp=\(fingerprint(line))")
             memory.append(Observation(
                 at: Date(),
                 description: nil,
@@ -198,7 +198,7 @@ final class CatCoordinator {
             ))
             await showAndSpeak(line, mode: .auto)
         } catch {
-            print("[cat] proactiveAssist capture failed:", error.localizedDescription)
+            Log.cat.error("proactiveAssist capture failed: \(error.localizedDescription)")
         }
     }
 
@@ -214,7 +214,7 @@ final class CatCoordinator {
                 let snapshot = self.memory.current
                 let result = await self.brain.getCatResponse(description: description, memory: snapshot)
                 if !result.response.isEmpty {
-                    print("[cat] autonomous:", result.response, "(tag=\(result.tag))")
+                    Log.cat.info("autonomous len=\(result.response.count) fp=\(fingerprint(result.response)) tag=\(result.tag)")
                 }
                 self.memory.append(Observation(
                     at: Date(),
@@ -226,7 +226,7 @@ final class CatCoordinator {
                     await self.showAndSpeak(result.response, mode: .auto)
                 }
             } catch {
-                print("[cat] observation capture failed:", error.localizedDescription)
+                Log.cat.error("observation capture failed: \(error.localizedDescription)")
             }
         }
     }
@@ -241,10 +241,10 @@ final class CatCoordinator {
                 let image = try await self.screen.capturePrimary()
                 let summary = await self.brain.summarizePdfImage(image)
                 if summary.isEmpty {
-                    print("[cat] pdf summary: (silent)")
+                    Log.cat.info("pdf summary: (silent)")
                     return
                 }
-                print("[cat] pdf summary:", summary)
+                Log.cat.info("pdf summary len=\(summary.count) fp=\(fingerprint(summary))")
                 self.memory.append(Observation(
                     at: Date(),
                     description: "PDF page summarized",
@@ -257,7 +257,7 @@ final class CatCoordinator {
                 let spoken = self.firstSentences(of: summary, max: 280)
                 await self.showAndSpeak(spoken, mode: .pdf)
             } catch {
-                print("[cat] pdf capture failed:", error.localizedDescription)
+                Log.cat.error("pdf capture failed: \(error.localizedDescription)")
             }
         }
     }
@@ -269,25 +269,25 @@ final class CatCoordinator {
             defer { Task { @MainActor in self?.emailInFlight = false } }
             guard let self else { return }
             guard let mail = await MailReader.readSelected() else {
-                print("[cat] email: no selection")
+                Log.cat.info("email: no selection")
                 return
             }
-            let fingerprint = "\(mail.subject)|\(mail.sender)|\(mail.body.count)"
-            if fingerprint == self.lastEmailFingerprint {
+            let dedupeKey = "\(mail.subject)|\(mail.sender)|\(mail.body.count)"
+            if dedupeKey == self.lastEmailFingerprint {
                 return  // same message — skip re-analyzing
             }
-            self.lastEmailFingerprint = fingerprint
+            self.lastEmailFingerprint = dedupeKey
 
-            print("[cat] email selection: subject=\"\(mail.subject)\" from=\(mail.sender) bodyLen=\(mail.body.count)")
+            Log.cat.info("email selection: subjectLen=\(mail.subject.count) subjectFp=\(fingerprint(mail.subject)) from=\(mail.sender) bodyLen=\(mail.body.count)")
             let result = await self.brain.analyzeEmail(mail)
             if !result.summary.isEmpty {
-                print("[cat] email summary:", result.summary)
+                Log.cat.info("email summary len=\(result.summary.count) fp=\(fingerprint(result.summary))")
             }
             if !result.draftReply.isEmpty {
-                print("[cat] email draft reply:", result.draftReply.prefix(200), "…")
+                Log.cat.info("email draft reply len=\(result.draftReply.count) fp=\(fingerprint(result.draftReply))")
             }
             if !result.clarifyingQuestion.isEmpty {
-                print("[cat] email ask:", result.clarifyingQuestion)
+                Log.cat.info("email ask len=\(result.clarifyingQuestion.count) fp=\(fingerprint(result.clarifyingQuestion))")
             }
             self.memory.append(Observation(
                 at: Date(),
@@ -329,6 +329,8 @@ final class CatCoordinator {
     }
 
     // MARK: - Helpers
+
+    private func fingerprint(_ s: String) -> String { String(s.hashValue, radix: 16) }
 
     /// Returns the first 1-2 sentences of `s`, capped at `max` characters. Used
     /// when we want to *speak* a passage but show the full thing in a panel.
@@ -399,14 +401,14 @@ final class CatCoordinator {
         let sessionID = listenSessionID
         wakeUp()
         catView.micButton.setListening(true)
-        print("[listener] starting…")
+        Log.listener.info("starting…")
 
         let callbacks = ListenerCallbacks(
             onPartial: { [weak self] text in
                 guard let self, !text.isEmpty else { return }
                 // Trim to a short prefix so a long partial doesn't spam logs.
                 let preview = text.count > 60 ? String(text.prefix(60)) + "…" : text
-                print("[listener] partial:", preview)
+                Log.listener.info("partial: \(preview)")
                 self.wakeUp()
             },
             onFinal: { [weak self] text in
@@ -415,14 +417,14 @@ final class CatCoordinator {
                 self.catView.micButton.setListening(false)
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if trimmed.isEmpty {
-                    print("[listener] final: (empty)")
+                    Log.listener.info("final: (empty)")
                     return
                 }
-                print("[listener] final:", trimmed)
+                Log.listener.info("final: \(trimmed)")
                 self.handleUserUtterance(trimmed)
             },
             onError: { warning in
-                print("[listener] warning:", warning)
+                Log.listener.warn(warning)
             }
         )
 
@@ -443,7 +445,7 @@ final class CatCoordinator {
             guard let self else { return }
             let reply = await self.brain.replyToUser(text)
             if reply.isEmpty { return }
-            print("[cat] reply:", reply)
+            Log.cat.info("reply len=\(reply.count) fp=\(fingerprint(reply))")
             self.memory.append(Observation(
                 at: Date(),
                 description: nil,

@@ -35,7 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             c.start()
             self.coordinator = c
         } else {
-            print("[cat] WARNING: contentView is not a CatView — coordinator not started")
+            Log.cat.warn("contentView is not a CatView — coordinator not started")
         }
 
         // Surface the cat on first launch so it's visible immediately.

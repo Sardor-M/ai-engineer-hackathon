@@ -71,7 +71,7 @@ final class ElevenLabsTTS: NSObject, TTSEngine {
         do {
             (data, response) = try await session.data(for: request)
         } catch {
-            print("[voice] elevenlabs network error:", error.localizedDescription)
+            Log.voice.error("elevenlabs network error: \(error.localizedDescription)")
             await fireOnDone(onDone)
             return false
         }
@@ -83,7 +83,7 @@ final class ElevenLabsTTS: NSObject, TTSEngine {
         else {
             let status = (response as? HTTPURLResponse)?.statusCode ?? -1
             let detail = String(data: data, encoding: .utf8)?.prefix(160) ?? ""
-            print("[voice] elevenlabs \(status):", detail)
+            Log.voice.error("elevenlabs \(status): \(detail)")
             await fireOnDone(onDone)
             return false
         }
@@ -112,7 +112,7 @@ final class ElevenLabsTTS: NSObject, TTSEngine {
             p.volume = 0.75
             p.prepareToPlay()
             guard p.play() else {
-                print("[voice] AVAudioPlayer.play() returned false")
+                Log.voice.error("AVAudioPlayer.play() returned false")
                 onDone?()
                 return false
             }
@@ -120,7 +120,7 @@ final class ElevenLabsTTS: NSObject, TTSEngine {
             self.onDoneCallback = onDone
             return true
         } catch {
-            print("[voice] AVAudioPlayer init failed:", error.localizedDescription)
+            Log.voice.error("AVAudioPlayer init failed: \(error.localizedDescription)")
             onDone?()
             return false
         }

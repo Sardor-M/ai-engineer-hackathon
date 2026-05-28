@@ -45,7 +45,7 @@ struct GeminiChat: ChatProvider {
         do {
             (data, response) = try await session.data(for: request)
         } catch {
-            print("[brain] gemini network error:", error.localizedDescription)
+            Log.brain.error("gemini network error: \(error.localizedDescription)")
             return ""
         }
 
@@ -56,7 +56,7 @@ struct GeminiChat: ChatProvider {
             if http.statusCode == 429 || matchesRateLimit(errText) {
                 await RateLimiter.shared.markBlocked(name, reason: errText)
             } else {
-                print("[brain] gemini \(http.statusCode):", errText.prefix(160))
+                Log.brain.error("gemini \(http.statusCode): \(errText.prefix(160))")
             }
             return ""
         }
