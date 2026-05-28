@@ -72,6 +72,10 @@ final class ActivePanel {
         if let m = moveObserver {
             NotificationCenter.default.removeObserver(m)
         }
+        let p = self.panel
+        DispatchQueue.main.async {
+            p.close()
+        }
     }
 
     // MARK: - Public API
