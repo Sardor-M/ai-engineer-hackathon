@@ -195,6 +195,7 @@ final class ActivePanelModel: ObservableObject {
 
 /// Card layout: a colored header band, a divider, then the mode-specific
 /// body. Fades + scales in/out tied to `model.visible`.
+@MainActor
 struct ActivePanelContent: View {
     @ObservedObject var model: ActivePanelModel
 
