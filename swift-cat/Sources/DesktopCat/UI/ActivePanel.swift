@@ -132,7 +132,8 @@ final class ActivePanel {
         var originX = cat.minX - panelWidth - Self.gap
         var originY = cat.midY - panelHeight / 2
 
-        if let visible = NSScreen.main?.visibleFrame {
+        let screen = anchor.screen ?? NSScreen.main
+        if let visible = screen?.visibleFrame {
             // Clamp horizontally — if the cat is dragged to the far left and
             // the panel would go off-screen, slide it to the right of the cat
             // instead.
