@@ -6,7 +6,10 @@ import Foundation
 /// voice, and listener; Phase 4a adds the visible UI — every brain output now
 /// renders in a `SpeechBubble` and a `MicButton` in the cat window's
 /// bottom-right corner replaces the `Cmd+Shift+L` hotkey (which still works as
-/// a fallback).
+/// a fallback). Phase 4b adds an `ActivePanel` to the left of the cat that
+/// shows the *full* PDF summary or the Summary/Reply/Ask tabs for a selected
+/// email; the speech bubble continues to surface only the first 1–2 sentences
+/// for voice.
 @MainActor
 final class CatCoordinator {
 
@@ -32,6 +35,9 @@ final class CatCoordinator {
 
     // UI (Phase 4a).
     private let bubble: SpeechBubble
+
+    // UI (Phase 4b).
+    private let panel: ActivePanel
 
     // System integrations.
     private let frontmost = FrontmostWatcher()
@@ -76,7 +82,8 @@ final class CatCoordinator {
         brain: Brain,
         voice: Voice,
         listener: Listener,
-        bubble: SpeechBubble
+        bubble: SpeechBubble,
+        panel: ActivePanel
     ) {
         self.catView = catView
         self.settings = settings
@@ -85,6 +92,7 @@ final class CatCoordinator {
         self.voice = voice
         self.listener = listener
         self.bubble = bubble
+        self.panel = panel
     }
 
     func start() {
@@ -110,7 +118,7 @@ final class CatCoordinator {
 
         catView.micButton.onToggle = { [weak self] in self?.toggleListen() }
 
-        Log.cat.info("coordinator ready — bubble + mic wired (Phase 4a)")
+        Log.cat.info("coordinator ready — bubble + mic + active panel wired (Phase 4b)")
     }
 
     func stop() {
@@ -118,6 +126,7 @@ final class CatCoordinator {
         cursor.stop()
         voice.stop()
         listener.stop()
+        panel.hide()
         if let m = hotkeyMonitor { NSEvent.removeMonitor(m) }
         hotkeyMonitor = nil
         if let lm = localHotkeyMonitor { NSEvent.removeMonitor(lm) }
@@ -142,7 +151,10 @@ final class CatCoordinator {
             wakeUp()
             runEmailAnalysis()
         case .idle:
-            break
+            // Drop any active-mode panel content when the user returns to a
+            // generic foreground app. The bubble is left alone — it has its
+            // own lifecycle tied to voice playback.
+            panel.hide()
         }
     }
 
@@ -251,9 +263,10 @@ final class CatCoordinator {
                     tag: "pdf-summary",
                     said: summary
                 ))
-                // Speak the first 1-2 sentences — the active panel (Phase 4b)
-                // will show the full text. Limit to ~280 chars so ElevenLabs
-                // doesn't bill us for a long, monotone read.
+                // Full text goes to the panel; the bubble + voice only get
+                // the first 1–2 sentences. Limit the spoken slice to ~280
+                // chars so a long page doesn't become a long, monotone read.
+                self.panel.show(pdf: summary)
                 let spoken = self.firstSentences(of: summary, max: 280)
                 await self.showAndSpeak(spoken, mode: .pdf)
             } catch {
@@ -295,6 +308,9 @@ final class CatCoordinator {
                 tag: "email-analyzed",
                 said: result.summary.isEmpty ? nil : result.summary
             ))
+            // Show every field the model returned in the panel; speak only
+            // the summary so the user isn't read three paragraphs in a row.
+            self.panel.show(email: result)
             if !result.summary.isEmpty {
                 await self.showAndSpeak(result.summary, mode: .email)
             }

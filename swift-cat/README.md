@@ -11,9 +11,9 @@ Native macOS rewrite of the Electron cat. See [`../docs/SWIFT_REWRITE.md`](../do
 | 3a — Brain | ✅ shipped | OpenAI + Gemini dispatcher, five prompts ported verbatim, 60-min rate-limit cooldown, wired into click → proactive + 60s idle loop + PDF / email modes |
 | 3b — Voice | ✅ shipped | ElevenLabs TTS via AVAudioPlayer, AVSpeechSynthesizer fallback, VoicePicker auto-switch by mode + night hours, spoken after every brain output |
 | 3c — Listener | ✅ shipped | SFSpeechRecognizer on-device + Whisper fallback, Cmd+Shift+L toggle, transcript → reply → speak loop |
-| 4a — Bubble + mic button | ✅ this branch | Cream `NSPanel` speech bubble tracking the cat; mic button overlay in the cat window |
-| 4b — Active panel | ⏳ next | SwiftUI panel for PDF body + Email Summary/Reply/Ask tabs |
-| 4c — Settings overlay | ⏳ later | Voice / profile / auto-by-context toggles |
+| 4a — Bubble + mic button | ✅ shipped | Cream `NSPanel` speech bubble tracking the cat; mic button overlay in the cat window |
+| 4b — Active panel | ✅ this branch | SwiftUI panel anchored to the cat's left edge — blue header + full PDF summary, or pink header + Summary/Reply/Ask tabs with a Copy button |
+| 4c — Settings overlay | ⏳ next | Voice / profile / auto-by-context toggles |
 | 4d — Animations | ⏳ later | Per-profile color tint, breath, talking, walking cycle |
 
 ## Build & run
@@ -131,6 +131,37 @@ The cat is no longer silent on screen:
    (bubble fades in above the cat, audio plays, bubble fades out on completion)
 ```
 
+## Phase 4b — what works now
+
+A wider **active panel** (`UI/ActivePanel.swift`) sits to the left of the cat
+when she has more to say than the bubble can carry:
+
+- **PDF mode** — open a paper in Preview / Acrobat / a browser. The panel
+  fades in with a blue **reading** header and the full multi-sentence
+  summary in a scrollable body. The bubble still surfaces only the first
+  1–2 sentences for voice; the panel is where the rest of the summary
+  lives.
+- **Email mode** — select an unread message in Mail.app. Panel header
+  turns pink (**letter**). Three tabs appear — **Summary**, **Reply**,
+  **Ask** — and the Reply tab has a **Copy** button that places the
+  drafted text on the system pasteboard (button briefly reads "Copied").
+- Both modes follow the cat across drags and slide out the moment the
+  foreground app stops being PDF-ish / mail. If the cat is dragged to the
+  far-left of the screen and the panel would clip, it slides to the
+  cat's right edge instead.
+
+```
+[cat] frontmost mode=pdf  app=Preview  title=paper.pdf
+[cat] pdf summary len=412 fp=…
+   (panel slides in left of the cat; bubble pops the first sentence + voice speaks it)
+[cat] frontmost mode=idle app=Cursor title=
+   (panel slides out)
+```
+
+The panel is mouse-interactive (tabs + Copy) but uses
+`.nonactivatingPanel`, so clicking it never steals focus from whatever
+you're actually working on.
+
 ## Permissions (first run)
 
 For full functionality, grant in System Settings → Privacy & Security:
@@ -184,7 +215,8 @@ swift-cat/
     │   └── WhisperListener.swift
     ├── UI/
     │   ├── SpeechBubble.swift   ← floating NSPanel + SwiftUI content
-    │   └── MicButton.swift      ← cat-corner mic overlay
+    │   ├── MicButton.swift      ← cat-corner mic overlay
+    │   └── ActivePanel.swift    ← PDF body + Email tabs panel
     ├── Storage/
     │   ├── AppSupport.swift
     │   ├── Settings.swift
