@@ -62,7 +62,9 @@ final class ActivePanel {
             object: anchor,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.reposition() }
+            MainActor.assumeIsolated {
+                self?.reposition()
+            }
         }
 
         reposition()
