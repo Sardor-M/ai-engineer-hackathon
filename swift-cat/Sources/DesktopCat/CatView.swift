@@ -14,6 +14,10 @@ final class CatView: NSView {
     /// its `onToggle` to the listener.
     let micButton = MicButton()
 
+    /// Settings affordance, tucked just left of the mic. Coordinator wires its
+    /// `onTap` to the settings overlay.
+    let gearButton = GearButton()
+
     private let puddleLayer = CALayer()
     private let awakeLayer  = CALayer()
 
@@ -40,7 +44,7 @@ final class CatView: NSView {
 
         setupSprites()
         startBreathing()
-        setupMicButton()
+        setupCornerButtons()
     }
 
     required init?(coder: NSCoder) {
@@ -141,19 +145,33 @@ final class CatView: NSView {
         if !didDrag { onClick?() }
     }
 
-    // MARK: - Mic button overlay (Phase 4a)
+    // MARK: - Corner buttons (mic — Phase 4a, gear — Phase 4c)
 
-    private func setupMicButton() {
+    private func setupCornerButtons() {
         // Bottom-right of the cat window, tucked a few pt from the edge so
-        // it doesn't fight the sprite's silhouette.
+        // they don't fight the sprite's silhouette. The gear sits just left of
+        // the mic, vertically centered against it.
         let inset: CGFloat = 14
+        let gap: CGFloat = 8
+
+        let micX = bounds.maxX - micButton.frame.width - inset
         micButton.frame = NSRect(
-            x: bounds.maxX - micButton.frame.width - inset,
+            x: micX,
             y: inset,
             width: micButton.frame.width,
             height: micButton.frame.height
         )
         addSubview(micButton)
+
+        let gearX = micX - gap - gearButton.frame.width
+        let gearY = inset + (micButton.frame.height - gearButton.frame.height) / 2
+        gearButton.frame = NSRect(
+            x: gearX,
+            y: gearY,
+            width: gearButton.frame.width,
+            height: gearButton.frame.height
+        )
+        addSubview(gearButton)
     }
 
     override func updateTrackingAreas() {
@@ -173,9 +191,11 @@ final class CatView: NSView {
 
     override func mouseEntered(with event: NSEvent) {
         micButton.setRevealed(true)
+        gearButton.setRevealed(true)
     }
 
     override func mouseExited(with event: NSEvent) {
         micButton.setRevealed(false)
+        gearButton.setRevealed(false)
     }
 }

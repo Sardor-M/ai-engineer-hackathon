@@ -12,21 +12,40 @@ Native macOS rewrite of the Electron cat. See [`../docs/SWIFT_REWRITE.md`](../do
 | 3b — Voice | ✅ shipped | ElevenLabs TTS via AVAudioPlayer, AVSpeechSynthesizer fallback, VoicePicker auto-switch by mode + night hours, spoken after every brain output |
 | 3c — Listener | ✅ shipped | SFSpeechRecognizer on-device + Whisper fallback, Cmd+Shift+L toggle, transcript → reply → speak loop |
 | 4a — Bubble + mic button | ✅ shipped | Cream `NSPanel` speech bubble tracking the cat; mic button overlay in the cat window |
-| 4b — Active panel | ✅ this branch | SwiftUI panel anchored to the cat's left edge — blue header + full PDF summary, or pink header + Summary/Reply/Ask tabs with a Copy button |
-| 4c — Settings overlay | ⏳ next | Voice / profile / auto-by-context toggles |
+| 4b — Active panel | ✅ shipped | SwiftUI panel anchored to the cat's left edge — blue header + full PDF summary, or pink header + Summary/Reply/Ask tabs with a Copy button |
+| 4c — Settings overlay | ✅ this branch | Gear button beside the mic opens a SwiftUI card — voice on/off, default profile, auto-by-context, mic-questions — persisted to `settings.json` |
 | 4d — Animations | ⏳ later | Per-profile color tint, breath, talking, walking cycle |
 
 ## Build & run
 
 ```bash
 cd swift-cat
-swift run               # debug build + launch
+swift run               # debug build + launch (see caveat below)
 make release            # release build
 make bundle             # wrap into build/DesktopCat.app (stable bundle id for TCC)
-make open-bundle        # run the bundled .app — needed for persistent permissions
+make open-bundle        # run the bundled .app — required for mic / speech / Accessibility
 ```
 
 Quit with **Cmd+Q**.
+
+> ⚠️ **Use `make open-bundle` if you'll touch the mic.** `swift run` launches the
+> bare binary as a child of your terminal, so macOS TCC attributes any
+> privacy-protected request to the *terminal* (the "responsible process"), not
+> to DesktopCat — and a terminal-spawned, non-bundle process can't present a
+> permission prompt. The moment the listener calls
+> `SFSpeechRecognizer.requestAuthorization`, TCC **hard-aborts the process**
+> (`__TCC_CRASHING_DUE_TO_PRIVACY_VIOLATION__`) instead of prompting. This is a
+> macOS limitation, not a bug in the listener. `make open-bundle` launches via
+> LaunchServices so the `.app` is its own responsible process with a real
+> `Info.plist`, and the mic / speech prompts appear normally. `swift run` is
+> fine for everything that doesn't request the mic (window, drag, bubble,
+> active panel, settings overlay, PDF / email modes).
+
+To stop a bundled instance launched with `open`:
+
+```bash
+killall DesktopCat
+```
 
 ## Phase 2 — what works now
 
@@ -162,6 +181,28 @@ The panel is mouse-interactive (tabs + Copy) but uses
 `.nonactivatingPanel`, so clicking it never steals focus from whatever
 you're actually working on.
 
+## Phase 4c — what works now
+
+Hover the cat and two affordances fade in at the bottom-right: the mic
+(Phase 4a) and, just left of it, a small **gear**. Click the gear to open
+the **settings overlay** (`UI/SettingsOverlay.swift`) — a cream card on the
+cat's left edge with:
+
+- **Voice** — master on/off for spoken output.
+- **Profile** — pick the default voice character (soft / curious / bright /
+  low / whisper). Dimmed while *auto by context* is on, since context is
+  choosing for you.
+- **Auto voice by context** — let the mode (PDF → low, Mail → soft, 22–06h →
+  whisper) pick the character instead of the fixed default.
+- **Mic questions** — whether the cat may ask about what's under the cursor.
+
+Every change writes straight to
+`~/Library/Application Support/DesktopCat/settings.json` and `Voice` reads it
+fresh on the next utterance — so toggling *Voice* off or switching profile
+takes effect on the very next thing the cat says, no restart. Click the gear
+again (or the ✕ in the header) to dismiss. Like the other panels it's
+`.nonactivatingPanel`, so it never steals focus.
+
 ## Permissions (first run)
 
 For full functionality, grant in System Settings → Privacy & Security:
@@ -216,7 +257,9 @@ swift-cat/
     ├── UI/
     │   ├── SpeechBubble.swift   ← floating NSPanel + SwiftUI content
     │   ├── MicButton.swift      ← cat-corner mic overlay
-    │   └── ActivePanel.swift    ← PDF body + Email tabs panel
+    │   ├── GearButton.swift     ← cat-corner settings overlay toggle
+    │   ├── ActivePanel.swift    ← PDF body + Email tabs panel
+    │   └── SettingsOverlay.swift ← voice / profile / toggles card
     ├── Storage/
     │   ├── AppSupport.swift
     │   ├── Settings.swift

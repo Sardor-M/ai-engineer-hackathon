@@ -9,7 +9,9 @@ import Foundation
 /// a fallback). Phase 4b adds an `ActivePanel` to the left of the cat that
 /// shows the *full* PDF summary or the Summary/Reply/Ask tabs for a selected
 /// email; the speech bubble continues to surface only the first 1–2 sentences
-/// for voice.
+/// for voice. Phase 4c adds a gear button beside the mic that toggles a
+/// `SettingsOverlay` for voice on/off, default profile, auto-by-context, and
+/// the mic-questions switch — all persisted through the existing `SettingsStore`.
 @MainActor
 final class CatCoordinator {
 
@@ -38,6 +40,9 @@ final class CatCoordinator {
 
     // UI (Phase 4b).
     private let panel: ActivePanel
+
+    // UI (Phase 4c).
+    private let settingsOverlay: SettingsOverlay
 
     // System integrations.
     private let frontmost = FrontmostWatcher()
@@ -83,7 +88,8 @@ final class CatCoordinator {
         voice: Voice,
         listener: Listener,
         bubble: SpeechBubble,
-        panel: ActivePanel
+        panel: ActivePanel,
+        settingsOverlay: SettingsOverlay
     ) {
         self.catView = catView
         self.settings = settings
@@ -93,6 +99,7 @@ final class CatCoordinator {
         self.listener = listener
         self.bubble = bubble
         self.panel = panel
+        self.settingsOverlay = settingsOverlay
     }
 
     func start() {
@@ -118,7 +125,9 @@ final class CatCoordinator {
 
         catView.micButton.onToggle = { [weak self] in self?.toggleListen() }
 
-        Log.cat.info("coordinator ready — bubble + mic + active panel wired (Phase 4b)")
+        catView.gearButton.onTap = { [weak self] in self?.settingsOverlay.toggle() }
+
+        Log.cat.info("coordinator ready — bubble + mic + active panel + settings wired (Phase 4c)")
     }
 
     func stop() {
@@ -127,6 +136,7 @@ final class CatCoordinator {
         voice.stop()
         listener.stop()
         panel.hide()
+        settingsOverlay.hide()
         if let m = hotkeyMonitor { NSEvent.removeMonitor(m) }
         hotkeyMonitor = nil
         if let lm = localHotkeyMonitor { NSEvent.removeMonitor(lm) }
