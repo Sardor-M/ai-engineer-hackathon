@@ -24,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let listener = Listener.defaultStack()
             let bubble = SpeechBubble(anchor: window)
             let panel = ActivePanel(anchor: window)
+            let settingsOverlay = SettingsOverlay(anchor: window, settings: s)
             let c = CatCoordinator(
                 catView: view,
                 settings: s,
@@ -32,7 +33,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 voice: voice,
                 listener: listener,
                 bubble: bubble,
-                panel: panel
+                panel: panel,
+                settingsOverlay: settingsOverlay
             )
             c.start()
             self.coordinator = c
