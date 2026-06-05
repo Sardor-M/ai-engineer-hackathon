@@ -34,29 +34,9 @@ bundle: release
 	@if [ -d "$(RES_BUNDLE)" ]; then \
 		cp -R $(RES_BUNDLE) $(APP_BUNDLE)/Contents/MacOS/ ; \
 	fi
-	@printf '%s\n' \
-		'<?xml version="1.0" encoding="UTF-8"?>' \
-		'<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
-		'<plist version="1.0">' \
-		'<dict>' \
-		'  <key>CFBundleIdentifier</key><string>$(BUNDLE_ID)</string>' \
-		'  <key>CFBundleName</key><string>$(APP_NAME)</string>' \
-		'  <key>CFBundleExecutable</key><string>$(APP_NAME)</string>' \
-		'  <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>' \
-		'  <key>CFBundlePackageType</key><string>APPL</string>' \
-		'  <key>CFBundleShortVersionString</key><string>0.2.0</string>' \
-		'  <key>CFBundleVersion</key><string>1</string>' \
-		'  <key>LSMinimumSystemVersion</key><string>13.0</string>' \
-		'  <key>LSUIElement</key><true/>' \
-		'  <key>NSAppleEventsUsageDescription</key>' \
-		'  <string>The cat reads what is in front of you (Mail messages, frontmost app) so she can offer relevant help.</string>' \
-		'  <key>NSMicrophoneUsageDescription</key>' \
-		'  <string>The cat listens when you press the mic so she can answer you.</string>' \
-		'  <key>NSSpeechRecognitionUsageDescription</key>' \
-		'  <string>The cat transcribes what you say on-device when possible, so she can reply in conversation.</string>' \
-		'</dict>' \
-		'</plist>' \
-		> $(APP_BUNDLE)/Contents/Info.plist
+	@# Single source of truth: the same Info.plist the executable embeds via
+	@# the linker (see Package.swift) becomes the bundle's Contents/Info.plist.
+	@cp Info.plist $(APP_BUNDLE)/Contents/Info.plist
 	@echo "→ bundled $(APP_BUNDLE)"
 
 open-bundle: bundle

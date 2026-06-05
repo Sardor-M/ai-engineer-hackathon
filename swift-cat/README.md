@@ -20,13 +20,32 @@ Native macOS rewrite of the Electron cat. See [`../docs/SWIFT_REWRITE.md`](../do
 
 ```bash
 cd swift-cat
-swift run               # debug build + launch
+swift run               # debug build + launch (see caveat below)
 make release            # release build
 make bundle             # wrap into build/DesktopCat.app (stable bundle id for TCC)
-make open-bundle        # run the bundled .app — needed for persistent permissions
+make open-bundle        # run the bundled .app — required for mic / speech / Accessibility
 ```
 
 Quit with **Cmd+Q**.
+
+> ⚠️ **Use `make open-bundle` if you'll touch the mic.** `swift run` launches the
+> bare binary as a child of your terminal, so macOS TCC attributes any
+> privacy-protected request to the *terminal* (the "responsible process"), not
+> to DesktopCat — and a terminal-spawned, non-bundle process can't present a
+> permission prompt. The moment the listener calls
+> `SFSpeechRecognizer.requestAuthorization`, TCC **hard-aborts the process**
+> (`__TCC_CRASHING_DUE_TO_PRIVACY_VIOLATION__`) instead of prompting. This is a
+> macOS limitation, not a bug in the listener. `make open-bundle` launches via
+> LaunchServices so the `.app` is its own responsible process with a real
+> `Info.plist`, and the mic / speech prompts appear normally. `swift run` is
+> fine for everything that doesn't request the mic (window, drag, bubble,
+> active panel, settings overlay, PDF / email modes).
+
+To stop a bundled instance launched with `open`:
+
+```bash
+killall DesktopCat
+```
 
 ## Phase 2 — what works now
 
